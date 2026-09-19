@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.5 — 2026-09-19
+- **No native SQLite compile** — `node:sqlite` (Node ≥ 22.5); `npx` bin enables `--experimental-sqlite`.
+- `jevcache init` writes `OPENAI_BASE_URL` (and related) into the app `.env`.
+- `jevcache status` — running? hit rate / est. $ saved.
+- Clear **EXACT-ONLY vs Jev** banner when OpenRouter key is missing.
+- README: verified real-app MISS→HIT numbers, demo SVG, OG image under `docs/`.
+- Release workflow: npm publish with provenance + `id-token` (Trusted Publishing ready).
+- Docker image on Node 22; drop g++/python build deps.
+
 ## 0.1.4 — 2026-09-19
 - Session summary on Ctrl+C / SIGTERM: requests · hits · ~$ saved · stats URL.
 - TTY colors: green HIT, dim MISS (`JEVCACHE_NO_COLOR=1` / `NO_COLOR` to disable).

@@ -5,6 +5,7 @@ on:
 permissions:
   contents: read
   packages: write
+  id-token: write
 jobs:
   docker:
     runs-on: ubuntu-latest
@@ -21,3 +22,19 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+  npm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      # Prefer Trusted Publishing (OIDC). Falls back to NPM_TOKEN if set.
+      - name: Publish to npm
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

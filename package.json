@@ -1,6 +1,6 @@
 {
   "name": "@kushalicious/jevcache",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "One command: OpenAI-compatible proxy that skips chat calls when TypeSafe Jev says same intent.",
   "type": "module",
   "bin": {
@@ -24,7 +24,7 @@
     "prepublishOnly": "npm test && npm run build"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.5.0"
   },
   "license": "MIT",
   "repository": {
@@ -47,11 +47,9 @@
   ],
   "dependencies": {
     "@hono/node-server": "^1.14.1",
-    "better-sqlite3": "^11.9.1",
     "hono": "^4.7.5"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.13.10",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",

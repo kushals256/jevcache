@@ -56,9 +56,10 @@ Usage:
   jevcache              Start the proxy (default)
   jevcache start        Same as above
   jevcache start --demo After boot, run a live MISS → HIT demo
-  jevcache init         Create .env + print copy-paste wiring
+  jevcache init         Create/update .env + OPENAI_BASE_URL wiring
   jevcache doctor       Check keys / Node
   jevcache doctor --live  Also probe /healthz, Jev, and upstream
+  jevcache status       Is the proxy up? hit rate / $ saved
   jevcache open         Open /stats in your browser
   jevcache help         Show this help
 
@@ -77,6 +78,54 @@ Env:
   JEVCACHE_QUIET=1      Hide per-HIT / MISS console lines
   JEVCACHE_NO_COLOR=1   Disable TTY colors
 `);
+}
+
+function upsertEnvVars(filePath: string, vars: Record<string, string>): { created: boolean; updated: string[] } {
+  const created = !fs.existsSync(filePath);
+  let text = created ? "" : fs.readFileSync(filePath, "utf8");
+  if (!text.endsWith("\n") && text.length) text += "\n";
+  const updated: string[] = [];
+  for (const [key, value] of Object.entries(vars)) {
+    const re = new RegExp(`^${key}=.*$`, "m");
+    if (re.test(text)) {
+      text = text.replace(re, `${key}=${value}`);
+      updated.push(key);
+    } else {
+      text += `${key}=${value}\n`;
+      updated.push(key);
+    }
+  }
+  fs.writeFileSync(filePath, text);
+  return { created, updated };
+}
+
+async function cmdInit(): Promise<void> {
+  const dest = path.join(process.cwd(), ".env");
+  const port = process.env.PORT || "8080";
+  const host = process.env.HOST || "127.0.0.1";
+  const base = `http://${host}:${port}`;
+  const example = path.join(ROOT, ".env.example");
+  if (!fs.existsSync(dest) && fs.existsSync(example)) {
+    fs.writeFileSync(dest, fs.readFileSync(example, "utf8"));
+    console.log(`Wrote ${dest} from .env.example`);
+  }
+  const { created, updated } = upsertEnvVars(dest, {
+    OPENAI_BASE_URL: `${base}/v1`,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY || "",
+    HOST: host,
+    PORT: port,
+    DATA_DIR: process.env.DATA_DIR || "./data",
+    UPSTREAM_BASE_URL: process.env.UPSTREAM_BASE_URL || "https://openrouter.ai/api/v1",
+  });
+  if (created) console.log(`Created ${dest}`);
+  else console.log(`Updated ${dest}: ${updated.join(", ")}`);
+  console.log(`  OPENAI_BASE_URL=${base}/v1  ← point your app here`);
+  if (!process.env.OPENROUTER_API_KEY?.trim()) {
+    console.log("  Add OPENROUTER_API_KEY=… for Jev same-intent hits (exact-only without it).");
+  }
+  printWireSnippets(base);
+  console.log("  Next: npx @kushalicious/jevcache start --demo");
+  console.log("");
 }
 
 function printWireSnippets(base = "http://127.0.0.1:8080"): void {
@@ -106,22 +155,76 @@ function printWireSnippets(base = "http://127.0.0.1:8080"): void {
   console.log("");
 }
 
-async function cmdInit(): Promise<void> {
-  const dest = path.join(process.cwd(), ".env");
-  if (fs.existsSync(dest)) {
-    console.log(`.env already exists at ${dest}`);
-  } else {
-    const example = path.join(ROOT, ".env.example");
-    const template = fs.existsSync(example)
-      ? fs.readFileSync(example, "utf8")
-      : `OPENROUTER_API_KEY=\nUPSTREAM_API_KEY=\nUPSTREAM_BASE_URL=https://openrouter.ai/api/v1\nHOST=127.0.0.1\nPORT=8080\nDATA_DIR=./data\n`;
-    fs.writeFileSync(dest, template);
-    console.log(`Wrote ${dest}`);
-    console.log("Add your OpenRouter key, then run: npx @kushalicious/jevcache");
+function printModeBanner(cfg: { openrouterApiKey: string; mockJev: boolean }): void {
+  if (cfg.mockJev) {
+    console.log(`  ${c.yellow}Mode${c.reset}    MOCK_JEV — synthetic same-intent (dev only)`);
+    return;
   }
-  printWireSnippets();
-  console.log("  Next: npx @kushalicious/jevcache start --demo");
-  console.log("");
+  if (cfg.openrouterApiKey) {
+    console.log(`  ${c.green}Mode${c.reset}    Jev same-intent + exact cache (OPENROUTER_API_KEY set)`);
+  } else {
+    console.log("");
+    console.log(`  ${c.yellow}╔══════════════════════════════════════════════════════════╗${c.reset}`);
+    console.log(`  ${c.yellow}║  EXACT-ONLY MODE — no OPENROUTER_API_KEY                 ║${c.reset}`);
+    console.log(`  ${c.yellow}║  Paraphrases will MISS. Exact same prompt can HIT.       ║${c.reset}`);
+    console.log(`  ${c.yellow}║  Set OPENROUTER_API_KEY for TypeSafe Jev same-intent.    ║${c.reset}`);
+    console.log(`  ${c.yellow}╚══════════════════════════════════════════════════════════╝${c.reset}`);
+    console.log("");
+  }
+}
+
+async function cmdStatus(): Promise<void> {
+  loadDotEnv(path.join(process.cwd(), ".env"));
+  const cfg = loadConfig();
+  const base = `http://${cfg.host}:${cfg.port}`;
+  console.log("jevcache status");
+  try {
+    const health = await fetch(`${base}/healthz`, { signal: AbortSignal.timeout(2500) });
+    if (!health.ok) {
+      console.log(`  running   ${mark(false)}  ${base} → HTTP ${health.status}`);
+      console.log(`  ${c.dim}→ start with: jevcache start${c.reset}`);
+      process.exitCode = 1;
+      return;
+    }
+    console.log(`  running   ${mark(true)}  ${base}`);
+  } catch {
+    console.log(`  running   ${mark(false)}  not reachable at ${base}`);
+    console.log(`  ${c.dim}→ start with: jevcache start${c.reset}`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const headers: Record<string, string> = {};
+  if (cfg.adminToken) headers["X-Jevcache-Admin"] = cfg.adminToken;
+  try {
+    const res = await fetch(`${base}/stats.json`, {
+      headers,
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) {
+      console.log(`  stats     ${mark(false)}  HTTP ${res.status}`);
+      process.exitCode = 1;
+      return;
+    }
+    const s = (await res.json()) as {
+      requests: number;
+      hits_exact: number;
+      hits_jev: number;
+      misses: number;
+      hit_rate: number;
+      net_saved_usd: number;
+    };
+    const hits = (s.hits_exact || 0) + (s.hits_jev || 0);
+    console.log(`  requests  ${s.requests ?? 0}`);
+    console.log(`  hits      ${hits}  (exact ${s.hits_exact ?? 0} · jev ${s.hits_jev ?? 0})`);
+    console.log(`  misses    ${s.misses ?? 0}`);
+    console.log(`  hit rate  ${((s.hit_rate ?? 0) * 100).toFixed(1)}%`);
+    console.log(`  saved     ~${formatUsd(s.net_saved_usd ?? 0)} (est. net)`);
+    console.log(`  stats UI  ${base}/stats`);
+  } catch (e) {
+    console.log(`  stats     ${mark(false)}  ${e instanceof Error ? e.message : String(e)}`);
+    process.exitCode = 1;
+  }
 }
 
 async function ensureKeysInteractive(): Promise<void> {
@@ -138,7 +241,10 @@ async function ensureKeysInteractive(): Promise<void> {
     console.log("Get one at https://openrouter.ai/keys (used for Jev + optional upstream chat).");
     const key = (await rl.question("Paste OpenRouter API key (or Enter to skip): ")).trim();
     if (!key) {
-      console.warn("Skipping — exact-cache only until you set OPENROUTER_API_KEY.");
+      console.warn("");
+      console.warn(`${c.yellow}[jevcache] Skipping OpenRouter key → EXACT-ONLY MODE${c.reset}`);
+      console.warn(`${c.yellow}[jevcache] Paraphrases will MISS until you set OPENROUTER_API_KEY for Jev.${c.reset}`);
+      console.warn("");
       return;
     }
     process.env.OPENROUTER_API_KEY = key;
@@ -409,19 +515,17 @@ async function startServer(): Promise<void> {
       console.log("  jevcache is running");
       console.log(`  Proxy   ${base}/v1`);
       console.log(`  Stats   ${base}/stats`);
+      printModeBanner(cfg);
       printWireSnippets(base);
       if (!quiet) {
         console.log("  Hits/misses print here (colors on TTY).");
         console.log("  Set JEVCACHE_QUIET=1 to hide them.");
         console.log("");
       }
-      if (!cfg.openrouterApiKey && !cfg.mockJev) {
-        console.log("  Note: no OPENROUTER_API_KEY → exact-cache only (no Jev semantic)");
-      }
-      if (cfg.mockJev) console.log("  MOCK_JEV=1");
       if (cfg.mockUpstream) console.log("  MOCK_UPSTREAM=1");
       if (!forceDemo) {
         console.log("  Tip: jevcache start --demo  → live MISS then HIT");
+        console.log("       jevcache status        → hit rate / $ saved");
         console.log("       jevcache open          → open /stats");
         console.log("");
       }
@@ -466,6 +570,8 @@ if (cmd === "help" || cmd === "-h" || cmd === "--help") {
   await cmdInit();
 } else if (cmd === "doctor") {
   await doctor();
+} else if (cmd === "status") {
+  await cmdStatus();
 } else if (cmd === "open") {
   openStats();
 } else if (cmd === "start" || raw === undefined) {

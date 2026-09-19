@@ -10,8 +10,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
       - run: npm install
+        env:
+          NODE_OPTIONS: --experimental-sqlite
       - run: npm test
+        env:
+          NODE_OPTIONS: --experimental-sqlite
       - run: npm run build

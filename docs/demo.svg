@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="420" viewBox="0 0 960 420">
+  <rect width="960" height="420" fill="#0b0f14"/>
+  <rect x="40" y="36" width="880" height="348" rx="12" fill="#151b24" stroke="#243041"/>
+  <circle cx="72" cy="68" r="6" fill="#ff5f56"/><circle cx="94" cy="68" r="6" fill="#ffbd2e"/><circle cx="116" cy="68" r="6" fill="#27c93f"/>
+  <text x="150" y="74" fill="#8b9bb0" font-family="ui-monospace,Menlo,monospace" font-size="14">jevcache — start --demo</text>
+  <text x="64" y="130" fill="#8b9bb0" font-family="ui-monospace,Menlo,monospace" font-size="18">$ npx @kushalicious/jevcache start --demo</text>
+  <g opacity="0">
+    <animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.2;0.35;1" dur="6s" repeatCount="indefinite"/>
+    <text x="64" y="190" fill="#8b9bb0" font-family="ui-monospace,Menlo,monospace" font-size="18">MISS   Explain mutexes simply please     3244ms</text>
+  </g>
+  <g opacity="0">
+    <animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.45;0.6;1" dur="6s" repeatCount="indefinite"/>
+    <text x="64" y="240" fill="#3dd68c" font-family="ui-monospace,Menlo,monospace" font-size="18" font-weight="700">HIT (jev) · saved ~$0.0001 · Please explain mutexes simply  394ms</text>
+  </g>
+  <g opacity="0">
+    <animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.7;0.85;1" dur="6s" repeatCount="indefinite"/>
+    <text x="64" y="300" fill="#e7eef7" font-family="ui-monospace,Menlo,monospace" font-size="18">Session  2 requests · 1 hits · ~$0.0001 saved · /stats</text>
+  </g>
+</svg>

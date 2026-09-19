@@ -1,5 +1,5 @@
 /** SPDX-License-Identifier: MIT */
-import Database from "better-sqlite3";
+import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -18,15 +18,19 @@ export type CacheEntry = {
   expires_at: number;
 };
 
+/**
+ * File-backed SQLite via Node's built-in `node:sqlite` (no native addon compile).
+ * Requires Node >= 22.5 with `--experimental-sqlite` (bin wrapper enables it).
+ */
 export class CacheStore {
-  private db: Database.Database;
+  private db: DatabaseSync;
 
   constructor(dataDir: string) {
     fs.mkdirSync(dataDir, { recursive: true });
     const dbPath = path.join(dataDir, "jevcache.db");
-    this.db = new Database(dbPath);
-    this.db.pragma("journal_mode = WAL");
-    this.db.pragma("busy_timeout = 5000");
+    this.db = new DatabaseSync(dbPath);
+    this.db.exec("PRAGMA journal_mode = WAL;");
+    this.db.exec("PRAGMA busy_timeout = 5000;");
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS entries (
         id TEXT PRIMARY KEY,
@@ -50,9 +54,9 @@ export class CacheStore {
   }
 
   getByExactKey(exactKey: string, now = Date.now()): CacheEntry | null {
-    const row = this.db
-      .prepare(`SELECT * FROM entries WHERE exact_key = ?`)
-      .get(exactKey) as CacheEntry | undefined;
+    const row = this.db.prepare(`SELECT * FROM entries WHERE exact_key = ?`).get(exactKey) as
+      | CacheEntry
+      | undefined;
     if (!row) return null;
     if (row.expires_at <= now) {
       this.db.prepare(`DELETE FROM entries WHERE id = ?`).run(row.id);
@@ -85,7 +89,7 @@ export class CacheStore {
     this.db
       .prepare(
         `INSERT INTO entries (id, namespace, exact_key, user_text, response_json, model, prompt_tokens, completion_tokens, est_cost_usd, created_at, expires_at)
-         VALUES (@id, @namespace, @exact_key, @user_text, @response_json, @model, @prompt_tokens, @completion_tokens, @est_cost_usd, @created_at, @expires_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(exact_key) DO UPDATE SET
            response_json=excluded.response_json,
            prompt_tokens=excluded.prompt_tokens,
@@ -96,24 +100,36 @@ export class CacheStore {
            user_text=excluded.user_text,
            id=excluded.id`,
       )
-      .run({ ...entry, id });
+      .run(
+        id,
+        entry.namespace,
+        entry.exact_key,
+        entry.user_text,
+        entry.response_json,
+        entry.model,
+        entry.prompt_tokens,
+        entry.completion_tokens,
+        entry.est_cost_usd,
+        entry.created_at,
+        entry.expires_at,
+      );
     this.enforceMax(maxEntries);
     return this.getById(id)!;
   }
 
   delete(id: string): boolean {
     const info = this.db.prepare(`DELETE FROM entries WHERE id = ?`).run(id);
-    return info.changes > 0;
+    return Number(info.changes) > 0;
   }
 
   flush(): number {
     const info = this.db.prepare(`DELETE FROM entries`).run();
-    return info.changes;
+    return Number(info.changes);
   }
 
   count(): number {
-    const row = this.db.prepare(`SELECT COUNT(*) AS c FROM entries`).get() as { c: number };
-    return row.c;
+    const row = this.db.prepare(`SELECT COUNT(*) AS c FROM entries`).get() as { c: number | bigint };
+    return Number(row.c);
   }
 
   private enforceMax(maxEntries: number): void {
@@ -121,9 +137,7 @@ export class CacheStore {
     if (c <= maxEntries) return;
     const overflow = c - maxEntries;
     this.db
-      .prepare(
-        `DELETE FROM entries WHERE id IN (SELECT id FROM entries ORDER BY created_at ASC LIMIT ?)`,
-      )
+      .prepare(`DELETE FROM entries WHERE id IN (SELECT id FROM entries ORDER BY created_at ASC LIMIT ?)`)
       .run(overflow);
   }
 
