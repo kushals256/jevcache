@@ -1,6 +1,6 @@
 {
   "name": "jevcache",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "One command: OpenAI-compatible proxy that skips chat calls when TypeSafe Jev says same intent.",
   "type": "module",
   "bin": {
@@ -15,7 +15,7 @@
   "scripts": {
     "dev": "tsx src/cli.ts",
     "build": "tsc -p tsconfig.json",
-    "prepare": "npm run build",
+    "prepare": "node -e \"const fs=require('fs');if(!fs.existsSync('tsconfig.json')||!fs.existsSync('src'))process.exit(0);require('child_process').execSync('npm run build',{stdio:'inherit'})\"",
     "start": "node dist/cli.js",
     "test": "vitest run",
     "eval": "tsx scripts/eval.ts",
