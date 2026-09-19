@@ -1,17 +1,83 @@
 # jevcache
 
+[![npm](https://img.shields.io/npm/v/@kushalicious/jevcache.svg)](https://www.npmjs.com/package/@kushalicious/jevcache)
+[![Docker](https://img.shields.io/badge/ghcr.io-kushals256%2Fjevcache-blue)](https://github.com/kushals256/jevcache/pkgs/container/jevcache)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 **Routers pick a model. jevcache decides whether to call one.**
 
-OpenAI-compatible proxy that skips expensive chat completions when [TypeSafe Jev](https://typesafe.ai) judges **same intent** — calibrated decisions, not cosine similarity.
+Local OpenAI-compatible proxy that sits between your app and the LLM API. When someone asks the **same question in different words**, [TypeSafe Jev](https://typesafe.ai) can admit a cache hit — so you skip the expensive chat call. Calibrated same-intent decisions, not cosine similarity.
+
+Works with one script, one agent, or many — anything that speaks OpenAI `chat/completions`.
+
+## Why use it
+
+While you build, apps and agents rephrase a lot (“explain X”, “what is X?”, retries). Each repeat normally costs another call. jevcache reuses the answer when Jev says **same intent**, and **fails open** (if Jev errors, it still calls the model).
+
+## Quick start
+
+```bash
+npx @kushalicious/jevcache@latest
+# optional live proof: MISS then HIT
+npx @kushalicious/jevcache@latest start --demo
+```
+
+It asks for an [OpenRouter](https://openrouter.ai/keys) key if needed, prints copy-paste wiring, and logs hits like:
+
+`HIT (jev) · saved ~$0.01 · total saved $0.12`
+
+Point any OpenAI-compatible client at the proxy:
+
+```js
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.OPENROUTER_API_KEY,
+  baseURL: "http://127.0.0.1:8080/v1", // ← jevcache
+});
+
+await client.chat.completions.create({
+  model: "openai/gpt-4o-mini",
+  messages: [{ role: "user", content: "Explain mutexes" }],
+});
+```
+
+| | |
+|---|---|
+| Proxy | `http://127.0.0.1:8080/v1` |
+| Stats | [http://127.0.0.1:8080/stats](http://127.0.0.1:8080/stats) |
+| npm | [`@kushalicious/jevcache`](https://www.npmjs.com/package/@kushalicious/jevcache) |
+| Docker | `ghcr.io/kushals256/jevcache:latest` |
+
+### Docker
+
+```bash
+docker run --rm -p 8080:8080 \
+  -e OPENROUTER_API_KEY=$OPENROUTER_API_KEY \
+  -e UPSTREAM_API_KEY=$OPENROUTER_API_KEY \
+  ghcr.io/kushals256/jevcache:latest
+```
+
+### CLI
+
+```bash
+npx @kushalicious/jevcache init           # .env + OpenAI / LangChain / env snippets
+npx @kushalicious/jevcache doctor         # check keys
+npx @kushalicious/jevcache start          # run proxy (default)
+npx @kushalicious/jevcache start --demo   # boot + live MISS → HIT
+npx @kushalicious/jevcache help
+```
+
+Env: `JEVCACHE_DEMO=1` (same as `--demo`), `JEVCACHE_QUIET=1` (hide HIT lines).
+
+> First `npx` may compile `better-sqlite3` (needs basic build tools). Prefer Docker if that fails.
 
 ## Easiest: paste into Cursor / your coding agent
 
-Don’t want to touch the terminal? Open a **new agent chat** and paste the prompt in [`AGENT_SETUP.md`](./AGENT_SETUP.md).
-
-It tells the agent to install jevcache, ask once for your [OpenRouter key](https://openrouter.ai/keys), start the proxy, and point this project at `http://127.0.0.1:8080/v1`.
+Open a **new agent chat** and paste the prompt in [`AGENT_SETUP.md`](./AGENT_SETUP.md). The agent installs jevcache, asks once for your OpenRouter key, starts the proxy, and points the project at `http://127.0.0.1:8080/v1`.
 
 <details>
-<summary>Click to expand the prompt (same as AGENT_SETUP.md)</summary>
+<summary>Click to expand the prompt</summary>
 
 ```text
 You are setting up jevcache for me in this project.
@@ -19,6 +85,7 @@ You are setting up jevcache for me in this project.
 Goal: run an OpenAI-compatible local proxy that caches chat completions when TypeSafe Jev judges "same intent", so repeated/paraphrased LLM calls cost less while I build.
 
 Repo: https://github.com/kushals256/jevcache
+npm: npx @kushalicious/jevcache@latest
 
 Do ALL of the following without asking me to run terminal commands myself (you run them):
 
@@ -42,57 +109,6 @@ When done, tell me: start command, baseURL, where the key is stored, stats URL.
 
 </details>
 
-## Run in one command (if you’re fine with a terminal)
-
-```bash
-npx @kushalicious/jevcache@latest
-# or: npx @kushalicious/jevcache@latest start --demo   # live MISS → HIT
-```
-
-It will ask for your [OpenRouter API key](https://openrouter.ai/keys) if needed, print copy-paste wiring, and log hits as they happen.
-
-**Docker (also one command):**
-
-```bash
-docker run --rm -p 8080:8080 \
-  -e OPENROUTER_API_KEY=$OPENROUTER_API_KEY \
-  -e UPSTREAM_API_KEY=$OPENROUTER_API_KEY \
-  ghcr.io/kushals256/jevcache:latest
-```
-
-Then in any OpenAI SDK / LangChain OpenAI client:
-
-```js
-import OpenAI from "openai";
-
-const client = new OpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  baseURL: "http://127.0.0.1:8080/v1", // ← jevcache
-});
-
-// use any model your upstream supports
-await client.chat.completions.create({
-  model: "openai/gpt-4o-mini",
-  messages: [{ role: "user", content: "Explain mutexes" }],
-});
-```
-
-Stats: [http://127.0.0.1:8080/stats](http://127.0.0.1:8080/stats)
-
-### CLI
-
-```bash
-npx @kushalicious/jevcache init           # .env + OpenAI / LangChain / env snippets
-npx @kushalicious/jevcache doctor         # check keys
-npx @kushalicious/jevcache start          # run proxy (default)
-npx @kushalicious/jevcache start --demo   # boot + live MISS then HIT
-npx @kushalicious/jevcache help
-```
-
-Hits print in the terminal: `HIT (jev) · saved ~$0.01 · total saved $0.12`. Set `JEVCACHE_QUIET=1` to hide them.
-
-> First `npx` may compile `better-sqlite3` (needs basic build tools). Prefer Docker if install fails.
-
 ## How it works
 
 1. **Policy** — bypass stream / tools / multimodal / volatile asks  
@@ -102,7 +118,7 @@ Hits print in the terminal: `HIT (jev) · saved ~$0.01 · total saved $0.12`. Se
 5. **Miss** → upstream LLM → store  
 6. **Fail open** — if Jev errors, still call upstream  
 
-Works with **multiple models**: each `model` id has its own cache namespace. You choose the model in the request; jevcache decides whether to skip the call.
+Each `model` id has its own cache namespace. You choose the model; jevcache decides whether to skip the call.
 
 ## From source
 
@@ -118,7 +134,7 @@ npm run eval
 LIVE=1 OPENROUTER_API_KEY=... npm run eval
 ```
 
-See `results/eval.json` — live Jev had **0 false positives** on 100 fixtures vs high Jaccard FP rate.
+See `results/eval.json` — live Jev had **0 false positives** on 100 fixtures vs a high Jaccard FP rate.
 
 ## Not in v0
 

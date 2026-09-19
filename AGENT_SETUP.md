@@ -12,6 +12,7 @@ You are setting up jevcache for me in this project.
 Goal: run an OpenAI-compatible local proxy that caches chat completions when TypeSafe Jev judges "same intent", so repeated/paraphrased LLM calls cost less while I build.
 
 Repo: https://github.com/kushals256/jevcache
+npm: npx @kushalicious/jevcache@latest
 
 Do ALL of the following without asking me to run terminal commands myself (you run them):
 
@@ -56,7 +57,7 @@ When done, reply with:
 
 ## After the agent finishes
 
-1. Keep jevcache running while you develop.  
+1. Keep jevcache running while you develop (`npx @kushalicious/jevcache@latest`).  
 2. Open [http://127.0.0.1:8080/stats](http://127.0.0.1:8080/stats) to see hits and estimated $ saved.  
 3. You still need your own [OpenRouter](https://openrouter.ai/keys) key (free to create; usage is billed to you).
 

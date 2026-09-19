@@ -2,9 +2,11 @@
 
 ```bash
 npx @kushalicious/jevcache@latest
-# or until npm publish:
-npx --yes github:kushals256/jevcache
+npx @kushalicious/jevcache@latest start --demo
 ```
+
+npm: https://www.npmjs.com/package/@kushalicious/jevcache  
+Docker: `ghcr.io/kushals256/jevcache:latest`
 
 # Launch checklist
 
@@ -16,7 +18,7 @@ gh search code "same_intent" "chat/completions" jev --limit 20
 If a clone appeared, sharpen README first sentence before posting.
 
 ## Assets
-1. Run demo burn → screenshot `/stats`
+1. Run `npx @kushalicious/jevcache@latest start --demo` → screenshot `/stats`
 2. One false-HIT story: cosine/Jaccard would merge “explain quicksort” vs “explain mergesort”; Jev should not
 3. `results/eval.json` from `LIVE=1 npm run eval`
 
@@ -25,7 +27,7 @@ If a clone appeared, sharpen README first sentence before posting.
 >
 > OpenAI-compatible proxy: TypeSafe Jev admits same-intent cache hits (not cosine). Exact tier + fail-open.
 >
-> docker compose up → change baseURL → watch /stats $ saved
+> npx @kushalicious/jevcache@latest → change baseURL → watch /stats $ saved
 >
 > github.com/kushals256/jevcache
 
