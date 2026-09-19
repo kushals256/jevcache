@@ -24,7 +24,7 @@ Do ALL of the following without asking me to run terminal commands myself (you r
 
 1. Check Node.js >= 20. If missing, tell me how to install it in one step for my OS.
 2. Prefer the easiest install that works:
-   a) Try: npx --yes jevcache@latest doctor
+   a) Try: npx --yes @kushalicious/jevcache@latest doctor
       (fallback: npx --yes github:kushals256/jevcache doctor)
    b) If native build fails, use Docker with ghcr.io/kushals256/jevcache:latest on port 8080
    c) Or clone into ../jevcache, npm install, npm run build.
@@ -45,8 +45,8 @@ When done, tell me: start command, baseURL, where the key is stored, stats URL.
 ## Run in one command (if you’re fine with a terminal)
 
 ```bash
-npx jevcache@latest
-# or: npx jevcache@latest start --demo   # live MISS → HIT
+npx @kushalicious/jevcache@latest
+# or: npx @kushalicious/jevcache@latest start --demo   # live MISS → HIT
 ```
 
 It will ask for your [OpenRouter API key](https://openrouter.ai/keys) if needed, print copy-paste wiring, and log hits as they happen.
@@ -82,11 +82,11 @@ Stats: [http://127.0.0.1:8080/stats](http://127.0.0.1:8080/stats)
 ### CLI
 
 ```bash
-npx jevcache init           # .env + OpenAI / LangChain / env snippets
-npx jevcache doctor         # check keys
-npx jevcache start          # run proxy (default)
-npx jevcache start --demo   # boot + live MISS then HIT
-npx jevcache help
+npx @kushalicious/jevcache init           # .env + OpenAI / LangChain / env snippets
+npx @kushalicious/jevcache doctor         # check keys
+npx @kushalicious/jevcache start          # run proxy (default)
+npx @kushalicious/jevcache start --demo   # boot + live MISS then HIT
+npx @kushalicious/jevcache help
 ```
 
 Hits print in the terminal: `HIT (jev) · saved ~$0.01 · total saved $0.12`. Set `JEVCACHE_QUIET=1` to hide them.

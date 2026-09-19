@@ -8,3 +8,4 @@ data/**
 .DS_Store
 prices.local.json
 src/**/*.tmp
+.npmrc

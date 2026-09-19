@@ -47,7 +47,7 @@ Usage:
   jevcache help         Show this help
 
 One-liners:
-  npx jevcache@latest
+  npx @kushalicious/jevcache@latest
   docker run --rm -p 8080:8080 \\
     -e OPENROUTER_API_KEY=$OPENROUTER_API_KEY \\
     -e UPSTREAM_API_KEY=$OPENROUTER_API_KEY \\
@@ -100,10 +100,10 @@ async function cmdInit(): Promise<void> {
       : `OPENROUTER_API_KEY=\nUPSTREAM_API_KEY=\nUPSTREAM_BASE_URL=https://openrouter.ai/api/v1\nHOST=127.0.0.1\nPORT=8080\nDATA_DIR=./data\n`;
     fs.writeFileSync(dest, template);
     console.log(`Wrote ${dest}`);
-    console.log("Add your OpenRouter key, then run: npx jevcache");
+    console.log("Add your OpenRouter key, then run: npx @kushalicious/jevcache");
   }
   printWireSnippets();
-  console.log("  Next: npx jevcache start --demo");
+  console.log("  Next: npx @kushalicious/jevcache start --demo");
   console.log("");
 }
 

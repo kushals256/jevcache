@@ -1,7 +1,7 @@
 ## One-command for users
 
 ```bash
-npx jevcache@latest
+npx @kushalicious/jevcache@latest
 # or until npm publish:
 npx --yes github:kushals256/jevcache
 ```
