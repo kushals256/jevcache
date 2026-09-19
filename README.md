@@ -22,69 +22,17 @@ call 2  "Please explain mutexes simply"     →  HIT    ~0.4s   (jev · same ans
 
 **Verified on a real app:** MISS `3244ms` → HIT (`jev`, intent `0.93`) `394ms`, same cached reply, est. saved `$0.000137`.
 
+**Want to try it in your project?** → [paste the agent prompt](#easiest-path-paste-into-cursor-or-any-coding-agent) into a new Cursor chat (or run `npx` below).
+
 Works with one script, one agent, or many — anything that speaks `/v1/chat/completions`.  
 **No native SQLite compile** — uses Node’s built-in `node:sqlite` (Node ≥ 22.5).
 
 ---
 
-## Try it in 30 seconds
+## Easiest path: paste into Cursor (or any coding agent)
 
-```bash
-npx @kushalicious/jevcache@latest start --demo
-```
-
-You’ll get a key prompt (OpenRouter), wiring snippets (including `OPENAI_BASE_URL` in `.env`), a live **MISS → HIT**, and green HIT lines in the terminal.
-
-| | |
-| --- | --- |
-| **Proxy** | `http://127.0.0.1:8080/v1` |
-| **Stats** | [http://127.0.0.1:8080/stats](http://127.0.0.1:8080/stats) · `jevcache open` / `jevcache status` |
-| **npm** | [`@kushalicious/jevcache`](https://www.npmjs.com/package/@kushalicious/jevcache) |
-| **Docker** | `ghcr.io/kushals256/jevcache:latest` |
-
-**Need an [OpenRouter](https://openrouter.ai/keys) key** for real Jev same-intent hits.  
-**No key?** still try the flow:
-
-```bash
-MOCK_JEV=1 MOCK_UPSTREAM=1 npx @kushalicious/jevcache@latest start --demo
-```
-
-Without an OpenRouter key, the proxy runs in **exact-only mode** (paraphrases miss; identical prompts can hit). You’ll see a clear banner on start.
-
----
-
-## Wire your app (one line change)
-
-```bash
-npx @kushalicious/jevcache init   # writes OPENAI_BASE_URL=http://127.0.0.1:8080/v1 into ./.env
-```
-
-Or set it yourself:
-
-```js
-import OpenAI from "openai";
-
-const client = new OpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  baseURL: "http://127.0.0.1:8080/v1", // ← was OpenAI / OpenRouter directly
-});
-```
-
-```bash
-export OPENAI_BASE_URL="http://127.0.0.1:8080/v1"
-export OPENAI_API_KEY="$OPENROUTER_API_KEY"
-```
-
-See [`examples/openai_sdk.mjs`](./examples/openai_sdk.mjs).
-
----
-
-## Paste into Cursor / your coding agent
-
-Open a **new agent chat** and paste [`AGENT_SETUP.md`](./AGENT_SETUP.md).
-
-<details>
-<summary>Click to expand the full prompt</summary>
+**Open a new agent chat → copy the whole block below → send.**  
+The agent installs jevcache, wires `OPENAI_BASE_URL`, and proves **MISS → HIT**. Same prompt lives in [`AGENT_SETUP.md`](./AGENT_SETUP.md).
 
 ```text
 You are setting up jevcache for me in this project.
@@ -115,7 +63,59 @@ Do not commit secrets. If install fails, try the next method (npx → docker →
 When done, tell me: start command, baseURL, key location, whether MISS → HIT passed, stats URL.
 ```
 
-</details>
+You’ll need an [OpenRouter](https://openrouter.ai/keys) key when the agent asks (for real Jev hits). Prefer this path if you’re already in Cursor / Claude Code / Windsurf.
+
+---
+
+## Or try it yourself in 30 seconds
+
+```bash
+npx @kushalicious/jevcache@latest start --demo
+```
+
+You’ll get a key prompt, wiring snippets (`OPENAI_BASE_URL` in `.env`), a live **MISS → HIT**, and green HIT lines in the terminal.
+
+| | |
+| --- | --- |
+| **Proxy** | `http://127.0.0.1:8080/v1` |
+| **Stats** | [http://127.0.0.1:8080/stats](http://127.0.0.1:8080/stats) · `jevcache open` / `jevcache status` |
+| **npm** | [`@kushalicious/jevcache`](https://www.npmjs.com/package/@kushalicious/jevcache) |
+| **Docker** | `ghcr.io/kushals256/jevcache:latest` |
+| **Agent setup** | [`AGENT_SETUP.md`](./AGENT_SETUP.md) ← paste into a new chat |
+
+**No OpenRouter key?** still try the flow:
+
+```bash
+MOCK_JEV=1 MOCK_UPSTREAM=1 npx @kushalicious/jevcache@latest start --demo
+```
+
+Without a key, the proxy runs in **exact-only mode** (paraphrases miss; identical prompts can hit). You’ll see a clear banner on start.
+
+---
+
+## Wire your app (one line change)
+
+```bash
+npx @kushalicious/jevcache init   # writes OPENAI_BASE_URL=http://127.0.0.1:8080/v1 into ./.env
+```
+
+Or set it yourself:
+
+```js
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.OPENROUTER_API_KEY,
+  baseURL: "http://127.0.0.1:8080/v1", // ← was OpenAI / OpenRouter directly
+});
+```
+
+```bash
+export OPENAI_BASE_URL="http://127.0.0.1:8080/v1"
+export OPENAI_API_KEY="$OPENROUTER_API_KEY"
+```
+
+See [`examples/openai_sdk.mjs`](./examples/openai_sdk.mjs).
 
 ---
 
@@ -204,7 +204,7 @@ Streaming cache HITs, tool-call caching, hosted multi-tenant SaaS, auto model ro
 
 ## Links
 
-- [Changelog](./CHANGELOG.md) · [Contributing](./CONTRIBUTING.md) · [Security](./SECURITY.md)
+- [Agent setup prompt](./AGENT_SETUP.md) · [Changelog](./CHANGELOG.md) · [Contributing](./CONTRIBUTING.md) · [Security](./SECURITY.md)
 - [npm](https://www.npmjs.com/package/@kushalicious/jevcache) · [Releases](https://github.com/kushals256/jevcache/releases)
 
 ## License
