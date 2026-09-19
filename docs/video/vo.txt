@@ -1,0 +1,8 @@
+Same question. Different words.
+Agents and apps repeat intent — and you pay for it twice.
+jevcache is a local OpenAI-compatible proxy.
+Exact cache first. Then TypeSafe Jev admits same intent.
+Watch a real run. Miss. Then hit — nearly seven times faster.
+Try it in thirty seconds with npx.
+Or paste AGENT SETUP into Cursor and let your agent wire it.
+Try it. Roast it. Contribute.

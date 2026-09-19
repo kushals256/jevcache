@@ -1,0 +1,21 @@
+
+  $ npx @kushalicious/jevcache@0.1.5 start --demo
+
+  jevcache is running
+  Proxy   http://127.0.0.1:18086/v1
+  Mode    Jev same-intent + exact cache
+
+  Live demo — two paraphrases (expect MISS, then HIT)…
+
+  MISS         2817ms
+           "Explain mutexes simply please"
+           A mutex, short for "mutual exclusion," is a programming tool used to manage access to shar
+
+  HIT (jev)    423ms  ·  intent 0.94  ·  saved $0.000138
+           "Please explain mutexes simply"
+           A mutex, short for "mutual exclusion," is a programming tool used to manage access to shar
+
+  $ curl -s localhost:8080/stats.json | jq .hit_rate
+  requests 2  ·  hits 1  ·  hit_rate 50%  ·  saved $0.000138
+
+  CAPTURE_OK

@@ -1,0 +1,24 @@
+1
+00:00:00,000 --> 00:00:02,966
+Same question. Different words.
+
+2
+00:00:03,000 --> 00:00:06,966
+Agents repeat intent — you pay twice.
+
+3
+00:00:07,000 --> 00:00:10,966
+Local OpenAI proxy. Exact cache, then Jev.
+
+4
+00:00:11,000 --> 00:00:26,966
+Real run: MISS then HIT with Jev.
+
+5
+00:00:27,000 --> 00:00:33,966
+npx start --demo  or  paste AGENT_SETUP.
+
+6
+00:00:34,000 --> 00:00:38,966
+Try it. Roast it. Contribute.
+

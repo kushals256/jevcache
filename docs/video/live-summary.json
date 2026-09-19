@@ -1,0 +1,85 @@
+{
+  "missMs": 2817,
+  "hitMs": 423,
+  "speedup": 6.659574468085107,
+  "miss": {
+    "ok": true,
+    "status": 200,
+    "ms": 2817,
+    "cache": "MISS",
+    "tier": "none",
+    "intent": null,
+    "saved": "0.000000",
+    "preview": "A mutex, short for \"mutual exclusion,\" is a programming tool used to manage access to shar",
+    "content": "Explain mutexes simply please"
+  },
+  "hit": {
+    "ok": true,
+    "status": 200,
+    "ms": 423,
+    "cache": "HIT",
+    "tier": "jev",
+    "intent": "0.9400",
+    "saved": "0.000138",
+    "preview": "A mutex, short for \"mutual exclusion,\" is a programming tool used to manage access to shar",
+    "content": "Please explain mutexes simply"
+  },
+  "stats": {
+    "requests": 2,
+    "hits_exact": 0,
+    "hits_jev": 1,
+    "misses": 1,
+    "bypasses": 0,
+    "jev_errors": 0,
+    "upstream_errors": 0,
+    "coalesced": 0,
+    "jev_spend_usd": 0.000017262,
+    "upstream_spend_usd": 0.00013799999999999997,
+    "saved_usd": 0.00013799999999999997,
+    "latency_hit_ms": [
+      419
+    ],
+    "latency_miss_ms": [
+      2807
+    ],
+    "last_hits": [
+      {
+        "tier": "jev",
+        "preview": "Explain mutexes simply please",
+        "intent": 0.94,
+        "at": 1789824147033
+      }
+    ],
+    "started_at": 1789824142696,
+    "hit_rate": 0.5,
+    "p50_hit_ms": 419,
+    "p95_hit_ms": 419,
+    "p50_miss_ms": 2807,
+    "p95_miss_ms": 2807,
+    "net_saved_usd": 0.00012073799999999997,
+    "cost_inversion_warning": false
+  },
+  "transcript": [
+    "",
+    "  $ npx @kushalicious/jevcache@0.1.5 start --demo",
+    "",
+    "  jevcache is running",
+    "  Proxy   http://127.0.0.1:18086/v1",
+    "  Mode    Jev same-intent + exact cache",
+    "",
+    "  Live demo — two paraphrases (expect MISS, then HIT)…",
+    "",
+    "  MISS         2817ms",
+    "           \"Explain mutexes simply please\"",
+    "           A mutex, short for \"mutual exclusion,\" is a programming tool used to manage access to shar",
+    "",
+    "  HIT (jev)    423ms  ·  intent 0.94  ·  saved $0.000138",
+    "           \"Please explain mutexes simply\"",
+    "           A mutex, short for \"mutual exclusion,\" is a programming tool used to manage access to shar",
+    "",
+    "  $ curl -s localhost:8080/stats.json | jq .hit_rate",
+    "  requests 2  ·  hits 1  ·  hit_rate 50%  ·  saved $0.000138",
+    "",
+    "  CAPTURE_OK"
+  ]
+}

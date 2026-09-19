@@ -9,3 +9,10 @@ data/**
 prices.local.json
 src/**/*.tmp
 .npmrc
+
+# video build intermediates
+docs/video/frames/
+docs/video/bin/
+docs/video/data/
+docs/video/*.aiff
+docs/video/silent.mp4
