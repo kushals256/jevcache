@@ -1,0 +1,20 @@
+name: Bug report
+description: Something wrong with jevcache
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Repro steps
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit

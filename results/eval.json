@@ -1,0 +1,16 @@
+{
+  "n": 100,
+  "cosine_jaccard_threshold_0_35": {
+    "tp": 12,
+    "fp": 24,
+    "tn": 26,
+    "fn": 38,
+    "precision": 0.3333333333333333,
+    "recall": 0.24,
+    "f1": 0.27906976744186046,
+    "false_positive_rate": 0.48
+  },
+  "jev_live": null,
+  "jev_cost_usd": 0,
+  "note": "Set LIVE=1 OPENROUTER_API_KEY=... for Jev metrics; cosine baseline always runs"
+}

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+data/**
+!data/.gitkeep
+.env
+.env.local
+*.log
+.DS_Store
+prices.local.json
+src/**/*.tmp

@@ -1,0 +1,19 @@
+services:
+  jevcache:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8080"
+      DATA_DIR: /data
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      UPSTREAM_API_KEY: ${UPSTREAM_API_KEY:-${OPENROUTER_API_KEY:-}}
+      UPSTREAM_BASE_URL: ${UPSTREAM_BASE_URL:-https://openrouter.ai/api/v1}
+      JEVCACHE_ADMIN_TOKEN: ${JEVCACHE_ADMIN_TOKEN:-dev-admin}
+      INTENT_THRESHOLD: ${INTENT_THRESHOLD:-0.85}
+    volumes:
+      - jevcache-data:/data
+
+volumes:
+  jevcache-data:
