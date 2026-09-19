@@ -1,20 +1,50 @@
 name: Bug report
-description: Something wrong with jevcache
+description: Something wrong with jevcache (install, HIT/MISS, crashes)
 labels: ["bug"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please include enough to reproduce — especially install method and whether `/healthz` works.
   - type: textarea
     id: what
     attributes:
       label: What happened?
+      placeholder: Expected MISS → HIT but got two MISSes / crash on start / …
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install / run?
+      options:
+        - npx @kushalicious/jevcache
+        - Docker / ghcr.io
+        - From source (git clone)
+        - Other
     validations:
       required: true
   - type: textarea
     id: repro
     attributes:
       label: Repro steps
+      placeholder: |
+        1. npx @kushalicious/jevcache start --demo
+        2. …
     validations:
       required: true
   - type: input
     id: version
     attributes:
       label: Version / commit
+      placeholder: 0.1.4 or git SHA
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version
+      placeholder: v22.x
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / headers
+      description: Paste X-Jevcache headers, doctor --live output, or crash stack (redact keys).

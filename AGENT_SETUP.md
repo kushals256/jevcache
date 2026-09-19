@@ -1,6 +1,6 @@
 # Paste this into Cursor / Claude Code / any coding agent
 
-Copy everything inside the box below into a **new chat** with your agent. It will install and wire jevcache for you.
+Copy everything inside the box below into a **new chat**. The agent will install jevcache, wire your app, and prove a MISS → HIT.
 
 ---
 
@@ -39,28 +39,29 @@ Do ALL of the following without asking me to run terminal commands myself (you r
    - baseURL to use
    - link to http://127.0.0.1:8080/stats
 7. Optionally add .cursor/rules/jevcache.mdc so future agents keep using baseURL http://127.0.0.1:8080/v1 for chat completions while jevcache is the local cache proxy.
-8. Show me a minimal test: two chat calls with paraphrased prompts and explain how to read X-Jevcache HIT/MISS headers or /stats.
+8. Prove it works: two chat calls with paraphrased prompts. Expect MISS then HIT (jev or exact). Show X-Jevcache headers or /stats.
 
 Constraints:
 - Do not commit secrets.
-- Do not force tool-calling traffic through cache expectations (jevcache bypasses tools/stream).
+- Do not force tool-calling / streaming traffic through cache expectations (jevcache bypasses those).
 - If something fails, diagnose and pick the next install method (npx → docker → clone).
 
 When done, reply with:
 - How I start jevcache next time (one command)
 - Exact baseURL
 - Where my key is stored
-- Link to stats
+- Whether MISS → HIT passed
+- Link to stats (http://127.0.0.1:8080/stats)
 ```
 
 ---
 
 ## After the agent finishes
 
-1. Keep jevcache running while you develop (`npx @kushalicious/jevcache@latest`).  
-2. Open [http://127.0.0.1:8080/stats](http://127.0.0.1:8080/stats) to see hits and estimated $ saved.  
-3. You still need your own [OpenRouter](https://openrouter.ai/keys) key (free to create; usage is billed to you).
+1. Keep jevcache running while you develop.  
+2. Open [http://127.0.0.1:8080/stats](http://127.0.0.1:8080/stats) (or `npx @kushalicious/jevcache open`).  
+3. You still need your own [OpenRouter](https://openrouter.ai/keys) key for real Jev hits (usage billed to you).
 
-## Optional Cursor rule template
+## Optional Cursor rule
 
-See [templates/cursor-rule-jevcache.mdc](./templates/cursor-rule-jevcache.mdc) — agents can copy it to `.cursor/rules/jevcache.mdc`.
+See [templates/cursor-rule-jevcache.mdc](./templates/cursor-rule-jevcache.mdc) — copy to `.cursor/rules/jevcache.mdc`.
