@@ -1,19 +1,49 @@
 {
   "name": "jevcache",
-  "version": "0.1.0",
-  "description": "OpenAI-compatible proxy: Jev decides same-intent cache hits so you skip expensive chat calls.",
+  "version": "0.1.1",
+  "description": "One command: OpenAI-compatible proxy that skips chat calls when TypeSafe Jev says same intent.",
   "type": "module",
-  "bin": { "jevcache": "./dist/cli.js" },
+  "bin": {
+    "jevcache": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    ".env.example",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "dev": "tsx src/cli.ts",
     "build": "tsc -p tsconfig.json",
+    "prepare": "npm run build",
     "start": "node dist/cli.js",
     "test": "vitest run",
     "eval": "tsx scripts/eval.ts",
-    "demo": "tsx scripts/load_demo.ts"
+    "demo": "tsx scripts/load_demo.ts",
+    "prepublishOnly": "npm test && npm run build"
   },
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kushals256/jevcache.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kushals256/jevcache/issues"
+  },
+  "homepage": "https://github.com/kushals256/jevcache#readme",
+  "keywords": [
+    "jev",
+    "typesafe",
+    "openrouter",
+    "openai",
+    "cache",
+    "llm",
+    "proxy",
+    "semantic-cache"
+  ],
   "dependencies": {
     "@hono/node-server": "^1.14.1",
     "better-sqlite3": "^11.9.1",

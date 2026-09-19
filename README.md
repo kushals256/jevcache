@@ -2,90 +2,86 @@
 
 **Routers pick a model. jevcache decides whether to call one.**
 
-OpenAI-compatible proxy that skips expensive chat completions when [TypeSafe Jev](https://typesafe.ai) judges **same intent** as a cached ask — calibrated `noul`, not cosine similarity.
+OpenAI-compatible proxy that skips expensive chat completions when [TypeSafe Jev](https://typesafe.ai) judges **same intent** — calibrated decisions, not cosine similarity.
 
-> Embedding semantic caches (GPTCache, etc.) already exist. **jevcache’s wedge:** candidates may be recent/near-duplicate, but **only Jev can admit a semantic HIT.**
-
-## Quick start
+## Run in one command
 
 ```bash
-cp .env.example .env
-# set OPENROUTER_API_KEY + UPSTREAM_API_KEY (can be the same OpenRouter key)
-
-npm install
-npm run dev
+npx jevcache@latest
 ```
 
-Point any OpenAI SDK at the proxy:
+It will ask for your [OpenRouter API key](https://openrouter.ai/keys) if needed, then print the `baseURL` to paste into your app.
+
+**Docker (also one command):**
+
+```bash
+docker run --rm -p 8080:8080 \
+  -e OPENROUTER_API_KEY=$OPENROUTER_API_KEY \
+  -e UPSTREAM_API_KEY=$OPENROUTER_API_KEY \
+  ghcr.io/kushals256/jevcache:latest
+```
+
+Then in any OpenAI SDK / LangChain OpenAI client:
 
 ```js
 import OpenAI from "openai";
+
 const client = new OpenAI({
-  apiKey: process.env.UPSTREAM_API_KEY,
-  baseURL: "http://127.0.0.1:8080/v1",
+  apiKey: process.env.OPENROUTER_API_KEY,
+  baseURL: "http://127.0.0.1:8080/v1", // ← jevcache
+});
+
+// use any model your upstream supports
+await client.chat.completions.create({
+  model: "openai/gpt-4o-mini",
+  messages: [{ role: "user", content: "Explain mutexes" }],
 });
 ```
 
-Or Docker:
+Stats: [http://127.0.0.1:8080/stats](http://127.0.0.1:8080/stats)
+
+### CLI
 
 ```bash
-export OPENROUTER_API_KEY=... UPSTREAM_API_KEY=... JEVCACHE_ADMIN_TOKEN=dev-admin
-docker compose up --build
-open http://127.0.0.1:8080/stats   # header X-Jevcache-Admin: dev-admin if token set
+npx jevcache init      # write .env
+npx jevcache doctor    # check keys
+npx jevcache start     # run proxy (default)
+npx jevcache help
 ```
+
+> First `npx` may compile `better-sqlite3` (needs basic build tools). Prefer Docker if install fails.
 
 ## How it works
 
 1. **Policy** — bypass stream / tools / multimodal / volatile asks  
-2. **Exact** — SHA-256 of canonical request in a tenant|model|system|tools namespace  
-3. **Candidates** — last N prompts in that namespace (v0; embeddings optional later)  
-4. **Jev admit** (`admit-v1`) — `same_intent` noul + `best` choice; threshold default `0.85`  
-5. **Miss** → upstream → store (SQLite)  
-6. **Fail open** — if Jev errors, call upstream (never invent answers)
+2. **Exact** — SHA-256 of canonical request (per model + system prompt)  
+3. **Candidates** — recent prompts in that namespace  
+4. **Jev admit** — `same_intent` + pick best candidate  
+5. **Miss** → upstream LLM → store  
+6. **Fail open** — if Jev errors, still call upstream  
 
-Response headers: `X-Jevcache: HIT|MISS|BYPASS`, `X-Jevcache-Tier`, `X-Jevcache-Intent`, `X-Jevcache-Saved-USD`, `X-Jevcache-Entry-Id`.
+Works with **multiple models**: each `model` id has its own cache namespace. You choose the model in the request; jevcache decides whether to skip the call.
 
-## Stats
-
-`GET /stats` — hit rate, estimated $ saved vs Jev spend (estimates from `src/prices.ts`).
-
-Protect with `JEVCACHE_ADMIN_TOKEN` when binding non-localhost.
-
-## Eval (anti-hype)
+## From source
 
 ```bash
-npm run eval                       # Jaccard baseline on 100 fixtures
-LIVE=1 OPENROUTER_API_KEY=... npm run eval   # + live Jev metrics → results/eval.json
+git clone https://github.com/kushals256/jevcache
+cd jevcache && npm install && npm start
 ```
 
-Commit measured numbers before tweeting. Don’t invent savings %.
-
-## Local e2e without API keys
+## Eval
 
 ```bash
-bash scripts/e2e_mock.sh   # MOCK_UPSTREAM + MOCK_JEV — asserts exact + semantic HIT
+npm run eval
+LIVE=1 OPENROUTER_API_KEY=... npm run eval
 ```
 
-## Demo burn
+See `results/eval.json` — live Jev had **0 false positives** on 100 fixtures vs high Jaccard FP rate.
 
-```bash
-# terminal 1
-npm run dev
-# terminal 2
-UPSTREAM_API_KEY=... OPENROUTER_API_KEY=... npm run demo
-```
+## Not in v0
 
-## What v0 does **not** do
+Streaming cache HITs, tool-call caching, hosted multi-tenant SaaS, auto model routing.
 
-- Streaming cache HITs (stream = bypass/passthrough)
-- Tool-call caching
-- Multi-node / Redis
-- OpenAI Responses API / Anthropic Messages (501)
+## Privacy / license
 
-## Privacy
-
-Cache lives on disk under `DATA_DIR` (TTL + LRU). Semantic tier sends truncated, redacted user text to OpenRouter Decisions API. You operate the box — flush with `POST /admin/flush`.
-
-## License
-
-MIT
+Local SQLite under `DATA_DIR`. Semantic tier sends truncated prompts to OpenRouter. MIT.

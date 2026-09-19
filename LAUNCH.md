@@ -1,3 +1,11 @@
+## One-command for users
+
+```bash
+npx jevcache@latest
+# or until npm publish:
+npx --yes github:kushals256/jevcache
+```
+
 # Launch checklist
 
 ## Pre-tweet uniqueness re-check
