@@ -4,10 +4,48 @@
 
 OpenAI-compatible proxy that skips expensive chat completions when [TypeSafe Jev](https://typesafe.ai) judges **same intent** — calibrated decisions, not cosine similarity.
 
-## Run in one command
+## Easiest: paste into Cursor / your coding agent
+
+Don’t want to touch the terminal? Open a **new agent chat** and paste the prompt in [`AGENT_SETUP.md`](./AGENT_SETUP.md).
+
+It tells the agent to install jevcache, ask once for your [OpenRouter key](https://openrouter.ai/keys), start the proxy, and point this project at `http://127.0.0.1:8080/v1`.
+
+<details>
+<summary>Click to expand the prompt (same as AGENT_SETUP.md)</summary>
+
+```text
+You are setting up jevcache for me in this project.
+
+Goal: run an OpenAI-compatible local proxy that caches chat completions when TypeSafe Jev judges "same intent", so repeated/paraphrased LLM calls cost less while I build.
+
+Repo: https://github.com/kushals256/jevcache
+
+Do ALL of the following without asking me to run terminal commands myself (you run them):
+
+1. Check Node.js >= 20. If missing, tell me how to install it in one step for my OS.
+2. Prefer the easiest install that works:
+   a) Try: npx --yes github:kushals256/jevcache doctor
+   b) If native build fails, use Docker with ghcr.io/kushals256/jevcache:latest on port 8080
+   c) Or clone into ../jevcache, npm install, npm run build.
+3. Ask me ONCE for an OpenRouter API key (https://openrouter.ai/keys) if OPENROUTER_API_KEY is not set. Save to .env (never commit; ensure .gitignore has .env).
+4. Start jevcache in the background on http://127.0.0.1:8080 and verify GET /healthz.
+5. Wire THIS app so OpenAI-compatible clients use baseURL "http://127.0.0.1:8080/v1" and my OpenRouter/upstream key.
+6. Add SETUP_JEVCACHE.md (or a README note) with start command, baseURL, and /stats link.
+7. Optionally add .cursor/rules/jevcache.mdc so future agents keep that baseURL.
+8. Show a minimal paraphrase test and how to read X-Jevcache HIT/MISS or /stats.
+
+Do not commit secrets. If install fails, try the next method (npx → docker → clone).
+
+When done, tell me: start command, baseURL, where the key is stored, stats URL.
+```
+
+</details>
+
+## Run in one command (if you’re fine with a terminal)
 
 ```bash
-npx jevcache@latest
+npx --yes github:kushals256/jevcache
+# after npm publish: npx jevcache@latest
 ```
 
 It will ask for your [OpenRouter API key](https://openrouter.ai/keys) if needed, then print the `baseURL` to paste into your app.
