@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.4 — 2026-09-19
+- Session summary on Ctrl+C / SIGTERM: requests · hits · ~$ saved · stats URL.
+- TTY colors: green HIT, dim MISS (`JEVCACHE_NO_COLOR=1` / `NO_COLOR` to disable).
+- `jevcache doctor --live` probes `/healthz`, Jev Decisions, and upstream `/models`.
+- `jevcache open` opens `/stats` in the default browser.
+- README npm downloads badge.
+
 ## 0.1.3 — 2026-09-19
 - Console HIT lines with estimated $ saved and running total (`JEVCACHE_QUIET=1` to hide).
 - `jevcache init` / start banner print OpenAI SDK, LangChain, and `OPENAI_BASE_URL` wiring snippets.

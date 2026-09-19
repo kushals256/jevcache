@@ -36,8 +36,14 @@ export type CacheHitEvent = {
   intent?: number;
 };
 
+export type CacheMissEvent = {
+  spentUsd: number;
+  preview: string;
+};
+
 export type AppHooks = {
   onHit?: (event: CacheHitEvent) => void;
+  onMiss?: (event: CacheMissEvent) => void;
 };
 
 export type App = {
@@ -323,6 +329,10 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
     stats.upstream_spend_usd += value.est;
     pushLatency(stats.latency_miss_ms, Date.now() - t0);
     const parsed = JSON.parse(value.entry.response_json);
+    hooks.onMiss?.({
+      spentUsd: value.est,
+      preview: preview(value.entry.user_text),
+    });
     applyHeaders(c, hitHeaders("MISS", "none", 0, value.entry.id));
     return c.json(parsed);
   });

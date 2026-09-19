@@ -1,6 +1,7 @@
 # jevcache
 
 [![npm](https://img.shields.io/npm/v/@kushalicious/jevcache.svg)](https://www.npmjs.com/package/@kushalicious/jevcache)
+[![npm downloads](https://img.shields.io/npm/dm/@kushalicious/jevcache.svg)](https://www.npmjs.com/package/@kushalicious/jevcache)
 [![Docker](https://img.shields.io/badge/ghcr.io-kushals256%2Fjevcache-blue)](https://github.com/kushals256/jevcache/pkgs/container/jevcache)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
@@ -61,14 +62,16 @@ docker run --rm -p 8080:8080 \
 ### CLI
 
 ```bash
-npx @kushalicious/jevcache init           # .env + OpenAI / LangChain / env snippets
-npx @kushalicious/jevcache doctor         # check keys
-npx @kushalicious/jevcache start          # run proxy (default)
-npx @kushalicious/jevcache start --demo   # boot + live MISS → HIT
+npx @kushalicious/jevcache init              # .env + OpenAI / LangChain / env snippets
+npx @kushalicious/jevcache doctor            # check keys
+npx @kushalicious/jevcache doctor --live     # + probe /healthz, Jev, upstream
+npx @kushalicious/jevcache start             # run proxy (default)
+npx @kushalicious/jevcache start --demo      # boot + live MISS → HIT
+npx @kushalicious/jevcache open              # open /stats in the browser
 npx @kushalicious/jevcache help
 ```
 
-Env: `JEVCACHE_DEMO=1` (same as `--demo`), `JEVCACHE_QUIET=1` (hide HIT lines).
+On TTY, hits are green and misses are dim. Ctrl+C prints a session summary. Env: `JEVCACHE_DEMO=1`, `JEVCACHE_QUIET=1`, `JEVCACHE_NO_COLOR=1`.
 
 > First `npx` may compile `better-sqlite3` (needs basic build tools). Prefer Docker if that fails.
 

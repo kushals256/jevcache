@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /** SPDX-License-Identifier: MIT */
 import { serve } from "@hono/node-server";
+import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline/promises";
@@ -9,9 +10,22 @@ import { fileURLToPath } from "node:url";
 import { loadConfig } from "./config.js";
 import { createApp } from "./server.js";
 import { loadPriceOverlay } from "./prices.js";
+import { admitSameIntent } from "./jev_admit.js";
+import { forwardModels } from "./upstream.js";
+import { summarize, type Stats } from "./stats.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
+
+const useColor = process.stdout.isTTY && process.env.NO_COLOR !== "1" && process.env.JEVCACHE_NO_COLOR !== "1";
+const c = {
+  reset: useColor ? "\x1b[0m" : "",
+  green: useColor ? "\x1b[32m" : "",
+  dim: useColor ? "\x1b[2m" : "",
+  bold: useColor ? "\x1b[1m" : "",
+  yellow: useColor ? "\x1b[33m" : "",
+  red: useColor ? "\x1b[31m" : "",
+};
 
 function loadDotEnv(filePath: string): void {
   if (!fs.existsSync(filePath)) return;
@@ -43,7 +57,9 @@ Usage:
   jevcache start        Same as above
   jevcache start --demo After boot, run a live MISS → HIT demo
   jevcache init         Create .env + print copy-paste wiring
-  jevcache doctor       Check keys / port
+  jevcache doctor       Check keys / Node
+  jevcache doctor --live  Also probe /healthz, Jev, and upstream
+  jevcache open         Open /stats in your browser
   jevcache help         Show this help
 
 One-liners:
@@ -58,7 +74,8 @@ Then point your SDK:
 
 Env:
   JEVCACHE_DEMO=1       Same as --demo
-  JEVCACHE_QUIET=1      Hide per-HIT console lines
+  JEVCACHE_QUIET=1      Hide per-HIT / MISS console lines
+  JEVCACHE_NO_COLOR=1   Disable TTY colors
 `);
 }
 
@@ -146,23 +163,138 @@ async function ensureKeysInteractive(): Promise<void> {
   }
 }
 
-function doctor(): void {
+function mark(ok: boolean): string {
+  if (ok) return `${c.green}pass${c.reset}`;
+  return `${c.red}fail${c.reset}`;
+}
+
+async function doctor(): Promise<void> {
   loadDotEnv(path.join(process.cwd(), ".env"));
-  const hasOr = !!process.env.OPENROUTER_API_KEY?.trim();
-  const hasUp = !!process.env.UPSTREAM_API_KEY?.trim() || hasOr;
+  const cfg = loadConfig();
+  const hasOr = !!cfg.openrouterApiKey || cfg.mockJev;
+  const hasUp = !!cfg.upstreamApiKey || hasOr || cfg.mockUpstream;
+  const live = hasFlag("live");
+
   console.log("jevcache doctor");
-  console.log(`  OPENROUTER_API_KEY  ${hasOr ? "ok" : "MISSING (needed for Jev)"}`);
-  console.log(`  UPSTREAM_API_KEY    ${hasUp ? "ok" : "MISSING (needed for chat)"}`);
+  console.log(`  OPENROUTER_API_KEY  ${hasOr ? mark(true) : mark(false) + " (needed for Jev)"}`);
+  console.log(`  UPSTREAM_API_KEY    ${hasUp ? mark(true) : mark(false) + " (needed for chat)"}`);
   console.log(`  cwd                 ${process.cwd()}`);
   console.log(`  Node                ${process.version}`);
-  if (!hasOr) console.log("\nRun: jevcache init   then edit .env");
-  else printWireSnippets();
+
+  if (!live) {
+    if (!hasOr) console.log("\nRun: jevcache init   then edit .env");
+    else printWireSnippets(`http://${cfg.host}:${cfg.port}`);
+    console.log("  Tip: jevcache doctor --live  → probe /healthz, Jev, upstream");
+    console.log("");
+    return;
+  }
+
+  console.log("");
+  console.log("  live probes");
+  const base = `http://${cfg.host}:${cfg.port}`;
+
+  // /healthz
+  try {
+    const res = await fetch(`${base}/healthz`, { signal: AbortSignal.timeout(3000) });
+    const ok = res.ok;
+    console.log(`  /healthz            ${mark(ok)}  ${base}/healthz${ok ? "" : ` (${res.status})`}`);
+    if (!ok) console.log(`  ${c.dim}→ start the proxy: jevcache start${c.reset}`);
+  } catch {
+    console.log(`  /healthz            ${mark(false)}  not reachable at ${base}`);
+    console.log(`  ${c.dim}→ start the proxy: jevcache start${c.reset}`);
+  }
+
+  // Jev probe
+  if (cfg.mockJev) {
+    console.log(`  Jev                 ${mark(true)}  MOCK_JEV=1`);
+  } else if (!cfg.openrouterApiKey) {
+    console.log(`  Jev                 ${mark(false)}  no OPENROUTER_API_KEY`);
+  } else {
+    try {
+      const admit = await admitSameIntent({
+        apiKey: cfg.openrouterApiKey,
+        model: cfg.jevModel,
+        newText: "Explain mutexes simply please",
+        candidates: [
+          { id: "a", text: "Please explain mutexes simply" },
+          { id: "b", text: "How does DNS work?" },
+        ],
+        threshold: cfg.intentThreshold,
+        maxStateChars: cfg.maxStateChars,
+        timeoutMs: Math.min(cfg.jevTimeoutMs, 20_000),
+      });
+      if (admit.ok) {
+        console.log(
+          `  Jev                 ${mark(true)}  noul=${admit.noul.toFixed(2)} best=${admit.best}`,
+        );
+      } else {
+        console.log(`  Jev                 ${mark(false)}  ${admit.error.slice(0, 80)}`);
+      }
+    } catch (e) {
+      console.log(`  Jev                 ${mark(false)}  ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  // Upstream probe
+  const upKey = cfg.upstreamApiKey || cfg.openrouterApiKey;
+  if (cfg.mockUpstream) {
+    console.log(`  upstream            ${mark(true)}  MOCK_UPSTREAM=1`);
+  } else if (!upKey) {
+    console.log(`  upstream            ${mark(false)}  no UPSTREAM_API_KEY`);
+  } else {
+    try {
+      const up = await forwardModels({
+        baseUrl: cfg.upstreamBaseUrl,
+        apiKey: upKey,
+        timeoutMs: Math.min(cfg.upstreamTimeoutMs, 15_000),
+      });
+      if (up.ok) {
+        console.log(`  upstream            ${mark(true)}  ${cfg.upstreamBaseUrl}/models`);
+      } else {
+        console.log(`  upstream            ${mark(false)}  HTTP ${up.status}`);
+      }
+    } catch (e) {
+      console.log(`  upstream            ${mark(false)}  ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  console.log("");
+  printWireSnippets(base);
+}
+
+function openStats(): void {
+  loadDotEnv(path.join(process.cwd(), ".env"));
+  const cfg = loadConfig();
+  const url = `http://${cfg.host}:${cfg.port}/stats`;
+  const platform = process.platform;
+  const cmd =
+    platform === "darwin" ? "open" : platform === "win32" ? "cmd" : "xdg-open";
+  const args = platform === "win32" ? ["/c", "start", "", url] : [url];
+  try {
+    const child = spawn(cmd, args, { detached: true, stdio: "ignore" });
+    child.unref();
+    console.log(`Opening ${url}`);
+  } catch (e) {
+    console.error(`Could not open browser: ${e instanceof Error ? e.message : String(e)}`);
+    console.error(`Open manually: ${url}`);
+    process.exit(1);
+  }
 }
 
 function formatUsd(n: number): string {
   if (n >= 0.01) return `$${n.toFixed(2)}`;
   if (n >= 0.0001) return `$${n.toFixed(4)}`;
   return `$${n.toFixed(6)}`;
+}
+
+function printSessionSummary(stats: Stats, base: string): void {
+  const s = summarize(stats);
+  const hits = s.hits_exact + s.hits_jev;
+  console.log("");
+  console.log(
+    `${c.bold}  Session${c.reset}  ${s.requests} requests · ${hits} hits · ~${formatUsd(s.net_saved_usd)} saved · ${base}/stats`,
+  );
+  console.log("");
 }
 
 async function askDemo(): Promise<boolean> {
@@ -223,7 +355,7 @@ async function runLiveDemo(base: string, apiKey: string): Promise<void> {
       console.log(`  error: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
-  console.log(`  Done. Open ${base}/stats`);
+  console.log(`  Done. Open ${base}/stats  (or: jevcache open)`);
   console.log("");
 }
 
@@ -245,17 +377,27 @@ async function startServer(): Promise<void> {
 
   const quiet = process.env.JEVCACHE_QUIET === "1";
   let announcedFirstHit = false;
+  const base = `http://${cfg.host}:${cfg.port}`;
 
-  const { app, close } = createApp(cfg, {
+  const { app, close, stats } = createApp(cfg, {
     onHit: quiet
       ? undefined
       : (ev) => {
-          const line = `[jevcache] HIT (${ev.tier}) · saved ~${formatUsd(ev.savedUsd)} · total saved ${formatUsd(ev.totalSavedUsd)} · ${ev.preview}`;
+          const line = `${c.green}[jevcache] HIT (${ev.tier})${c.reset} · saved ~${formatUsd(ev.savedUsd)} · total saved ${formatUsd(ev.totalSavedUsd)} · ${ev.preview}`;
           console.log(line);
           if (!announcedFirstHit) {
             announcedFirstHit = true;
-            console.log(`[jevcache] First hit — you're saving calls. Stats: http://${cfg.host}:${cfg.port}/stats`);
+            console.log(
+              `${c.green}[jevcache] First hit — you're saving calls.${c.reset} Stats: ${base}/stats`,
+            );
           }
+        },
+    onMiss: quiet
+      ? undefined
+      : (ev) => {
+          console.log(
+            `${c.dim}[jevcache] MISS · spent ~${formatUsd(ev.spentUsd)} · ${ev.preview}${c.reset}`,
+          );
         },
   });
 
@@ -263,14 +405,13 @@ async function startServer(): Promise<void> {
 
   await new Promise<void>((resolve) => {
     serve({ fetch: app.fetch, port: cfg.port, hostname: cfg.host }, () => {
-      const base = `http://${cfg.host}:${cfg.port}`;
       console.log("");
       console.log("  jevcache is running");
       console.log(`  Proxy   ${base}/v1`);
       console.log(`  Stats   ${base}/stats`);
       printWireSnippets(base);
       if (!quiet) {
-        console.log("  Hits print here as HIT (exact|jev) · saved · total.");
+        console.log("  Hits/misses print here (colors on TTY).");
         console.log("  Set JEVCACHE_QUIET=1 to hide them.");
         console.log("");
       }
@@ -281,6 +422,7 @@ async function startServer(): Promise<void> {
       if (cfg.mockUpstream) console.log("  MOCK_UPSTREAM=1");
       if (!forceDemo) {
         console.log("  Tip: jevcache start --demo  → live MISS then HIT");
+        console.log("       jevcache open          → open /stats");
         console.log("");
       }
       resolve();
@@ -298,13 +440,16 @@ async function startServer(): Promise<void> {
     if (!key && !cfg.mockUpstream) {
       console.warn("  Demo skipped — no upstream API key.");
     } else {
-      const base = `http://${cfg.host}:${cfg.port}`;
       await runLiveDemo(base, key || "mock");
     }
   }
 
+  let shuttingDown = false;
   const shutdown = () => {
-    console.log("\nshutting down…");
+    if (shuttingDown) return;
+    shuttingDown = true;
+    printSessionSummary(stats, base);
+    console.log("shutting down…");
     close();
     process.exit(0);
   };
@@ -320,7 +465,9 @@ if (cmd === "help" || cmd === "-h" || cmd === "--help") {
 } else if (cmd === "init") {
   await cmdInit();
 } else if (cmd === "doctor") {
-  doctor();
+  await doctor();
+} else if (cmd === "open") {
+  openStats();
 } else if (cmd === "start" || raw === undefined) {
   await startServer();
 } else {
