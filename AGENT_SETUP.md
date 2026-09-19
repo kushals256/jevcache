@@ -17,7 +17,8 @@ Do ALL of the following without asking me to run terminal commands myself (you r
 
 1. Check Node.js >= 20. If missing, tell me how to install it in one step for my OS.
 2. Prefer the easiest install that works:
-   a) Try: npx --yes github:kushals256/jevcache doctor
+   a) Try: npx --yes jevcache@latest doctor
+      (fallback: npx --yes github:kushals256/jevcache doctor)
    b) If native build fails, use Docker:
       docker run --rm -d --name jevcache -p 8080:8080 \
         -e OPENROUTER_API_KEY=$OPENROUTER_API_KEY \

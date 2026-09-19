@@ -24,7 +24,8 @@ Do ALL of the following without asking me to run terminal commands myself (you r
 
 1. Check Node.js >= 20. If missing, tell me how to install it in one step for my OS.
 2. Prefer the easiest install that works:
-   a) Try: npx --yes github:kushals256/jevcache doctor
+   a) Try: npx --yes jevcache@latest doctor
+      (fallback: npx --yes github:kushals256/jevcache doctor)
    b) If native build fails, use Docker with ghcr.io/kushals256/jevcache:latest on port 8080
    c) Or clone into ../jevcache, npm install, npm run build.
 3. Ask me ONCE for an OpenRouter API key (https://openrouter.ai/keys) if OPENROUTER_API_KEY is not set. Save to .env (never commit; ensure .gitignore has .env).
@@ -44,11 +45,11 @@ When done, tell me: start command, baseURL, where the key is stored, stats URL.
 ## Run in one command (if you’re fine with a terminal)
 
 ```bash
-npx --yes github:kushals256/jevcache
-# after npm publish: npx jevcache@latest
+npx jevcache@latest
+# or: npx jevcache@latest start --demo   # live MISS → HIT
 ```
 
-It will ask for your [OpenRouter API key](https://openrouter.ai/keys) if needed, then print the `baseURL` to paste into your app.
+It will ask for your [OpenRouter API key](https://openrouter.ai/keys) if needed, print copy-paste wiring, and log hits as they happen.
 
 **Docker (also one command):**
 
@@ -81,11 +82,14 @@ Stats: [http://127.0.0.1:8080/stats](http://127.0.0.1:8080/stats)
 ### CLI
 
 ```bash
-npx jevcache init      # write .env
-npx jevcache doctor    # check keys
-npx jevcache start     # run proxy (default)
+npx jevcache init           # .env + OpenAI / LangChain / env snippets
+npx jevcache doctor         # check keys
+npx jevcache start          # run proxy (default)
+npx jevcache start --demo   # boot + live MISS then HIT
 npx jevcache help
 ```
+
+Hits print in the terminal: `HIT (jev) · saved ~$0.01 · total saved $0.12`. Set `JEVCACHE_QUIET=1` to hide them.
 
 > First `npx` may compile `better-sqlite3` (needs basic build tools). Prefer Docker if install fails.
 

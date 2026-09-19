@@ -31,13 +31,18 @@ function loadDotEnv(filePath: string): void {
   }
 }
 
+function hasFlag(name: string): boolean {
+  return process.argv.slice(2).some((a) => a === name || a === `--${name}`);
+}
+
 function printHelp(): void {
   console.log(`jevcache — skip expensive chat calls when Jev says same intent
 
 Usage:
   jevcache              Start the proxy (default)
   jevcache start        Same as above
-  jevcache init         Create .env in the current folder
+  jevcache start --demo After boot, run a live MISS → HIT demo
+  jevcache init         Create .env + print copy-paste wiring
   jevcache doctor       Check keys / port
   jevcache help         Show this help
 
@@ -50,22 +55,56 @@ One-liners:
 
 Then point your SDK:
   baseURL: "http://127.0.0.1:8080/v1"
+
+Env:
+  JEVCACHE_DEMO=1       Same as --demo
+  JEVCACHE_QUIET=1      Hide per-HIT console lines
 `);
+}
+
+function printWireSnippets(base = "http://127.0.0.1:8080"): void {
+  const v1 = `${base}/v1`;
+  console.log("");
+  console.log("  Wire your app (pick one):");
+  console.log("");
+  console.log("  # OpenAI SDK");
+  console.log(`  import OpenAI from "openai";`);
+  console.log(`  const client = new OpenAI({`);
+  console.log(`    apiKey: process.env.OPENROUTER_API_KEY,`);
+  console.log(`    baseURL: "${v1}",`);
+  console.log(`  });`);
+  console.log("");
+  console.log("  # Env override (many tools honor these)");
+  console.log(`  export OPENAI_BASE_URL="${v1}"`);
+  console.log(`  export OPENAI_API_KEY="$OPENROUTER_API_KEY"`);
+  console.log("");
+  console.log("  # LangChain (ChatOpenAI)");
+  console.log(`  new ChatOpenAI({`);
+  console.log(`    model: "openai/gpt-4o-mini",`);
+  console.log(`    configuration: { baseURL: "${v1}" },`);
+  console.log(`    apiKey: process.env.OPENROUTER_API_KEY,`);
+  console.log(`  });`);
+  console.log("");
+  console.log(`  Stats: ${base}/stats`);
+  console.log("");
 }
 
 async function cmdInit(): Promise<void> {
   const dest = path.join(process.cwd(), ".env");
   if (fs.existsSync(dest)) {
     console.log(`.env already exists at ${dest}`);
-    return;
+  } else {
+    const example = path.join(ROOT, ".env.example");
+    const template = fs.existsSync(example)
+      ? fs.readFileSync(example, "utf8")
+      : `OPENROUTER_API_KEY=\nUPSTREAM_API_KEY=\nUPSTREAM_BASE_URL=https://openrouter.ai/api/v1\nHOST=127.0.0.1\nPORT=8080\nDATA_DIR=./data\n`;
+    fs.writeFileSync(dest, template);
+    console.log(`Wrote ${dest}`);
+    console.log("Add your OpenRouter key, then run: npx jevcache");
   }
-  const example = path.join(ROOT, ".env.example");
-  const template = fs.existsSync(example)
-    ? fs.readFileSync(example, "utf8")
-    : `OPENROUTER_API_KEY=\nUPSTREAM_API_KEY=\nUPSTREAM_BASE_URL=https://openrouter.ai/api/v1\nHOST=127.0.0.1\nPORT=8080\nDATA_DIR=./data\n`;
-  fs.writeFileSync(dest, template);
-  console.log(`Wrote ${dest}`);
-  console.log("Add your OpenRouter key, then run: npx jevcache");
+  printWireSnippets();
+  console.log("  Next: npx jevcache start --demo");
+  console.log("");
 }
 
 async function ensureKeysInteractive(): Promise<void> {
@@ -117,6 +156,75 @@ function doctor(): void {
   console.log(`  cwd                 ${process.cwd()}`);
   console.log(`  Node                ${process.version}`);
   if (!hasOr) console.log("\nRun: jevcache init   then edit .env");
+  else printWireSnippets();
+}
+
+function formatUsd(n: number): string {
+  if (n >= 0.01) return `$${n.toFixed(2)}`;
+  if (n >= 0.0001) return `$${n.toFixed(4)}`;
+  return `$${n.toFixed(6)}`;
+}
+
+async function askDemo(): Promise<boolean> {
+  if (!process.stdin.isTTY) return false;
+  const rl = readline.createInterface({ input, output });
+  try {
+    const a = (
+      await rl.question("Run a live demo (2 chat calls: MISS then HIT)? [y/N] ")
+    )
+      .trim()
+      .toLowerCase();
+    return a === "y" || a === "yes";
+  } finally {
+    rl.close();
+  }
+}
+
+async function runLiveDemo(base: string, apiKey: string): Promise<void> {
+  const model = process.env.DEMO_MODEL || "openai/gpt-4o-mini";
+  const prompts = [
+    "Explain mutexes simply please",
+    "Please explain mutexes simply",
+  ];
+  console.log("");
+  console.log("  Live demo — two paraphrases (expect MISS, then HIT)…");
+  console.log(`  model: ${model}`);
+
+  for (const content of prompts) {
+    const t0 = Date.now();
+    try {
+      const res = await fetch(`${base}/v1/chat/completions`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0,
+          seed: 42,
+          messages: [{ role: "user", content }],
+        }),
+      });
+      const cache = res.headers.get("X-Jevcache") ?? "?";
+      const tier = res.headers.get("X-Jevcache-Tier") ?? "";
+      const saved = res.headers.get("X-Jevcache-Saved-USD");
+      const ms = Date.now() - t0;
+      const label = tier && tier !== "none" ? `${cache} (${tier})` : cache;
+      const savedBit = saved && Number(saved) > 0 ? ` · saved ~${formatUsd(Number(saved))}` : "";
+      if (!res.ok) {
+        const body = await res.text();
+        console.log(`  ${label}  ${res.status}  ${content}  (${ms}ms)`);
+        console.log(`    ${body.slice(0, 160)}`);
+      } else {
+        console.log(`  ${label}${savedBit}  "${content}"  (${ms}ms)`);
+      }
+    } catch (e) {
+      console.log(`  error: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  console.log(`  Done. Open ${base}/stats`);
+  console.log("");
 }
 
 async function startServer(): Promise<void> {
@@ -135,31 +243,65 @@ async function startServer(): Promise<void> {
     );
   }
 
-  const { app, close } = createApp(cfg);
-  serve({ fetch: app.fetch, port: cfg.port, hostname: cfg.host }, () => {
-    const base = `http://${cfg.host}:${cfg.port}`;
-    console.log("");
-    console.log("  jevcache is running");
-    console.log(`  Proxy   ${base}/v1`);
-    console.log(`  Stats   ${base}/stats`);
-    console.log("");
-    console.log("  In your app:");
-    console.log(`    baseURL: "${base}/v1"`);
-    console.log(`    apiKey:  your upstream / OpenRouter key`);
-    console.log("");
-    console.log("  Example:");
-    console.log(`    import OpenAI from "openai";`);
-    console.log(`    const client = new OpenAI({`);
-    console.log(`      apiKey: process.env.OPENROUTER_API_KEY,`);
-    console.log(`      baseURL: "${base}/v1",`);
-    console.log(`    });`);
-    console.log("");
-    if (!cfg.openrouterApiKey && !cfg.mockJev) {
-      console.log("  Note: no OPENROUTER_API_KEY → exact-cache only (no Jev semantic)");
-    }
-    if (cfg.mockJev) console.log("  MOCK_JEV=1");
-    if (cfg.mockUpstream) console.log("  MOCK_UPSTREAM=1");
+  const quiet = process.env.JEVCACHE_QUIET === "1";
+  let announcedFirstHit = false;
+
+  const { app, close } = createApp(cfg, {
+    onHit: quiet
+      ? undefined
+      : (ev) => {
+          const line = `[jevcache] HIT (${ev.tier}) · saved ~${formatUsd(ev.savedUsd)} · total saved ${formatUsd(ev.totalSavedUsd)} · ${ev.preview}`;
+          console.log(line);
+          if (!announcedFirstHit) {
+            announcedFirstHit = true;
+            console.log(`[jevcache] First hit — you're saving calls. Stats: http://${cfg.host}:${cfg.port}/stats`);
+          }
+        },
   });
+
+  const forceDemo = hasFlag("demo") || process.env.JEVCACHE_DEMO === "1";
+
+  await new Promise<void>((resolve) => {
+    serve({ fetch: app.fetch, port: cfg.port, hostname: cfg.host }, () => {
+      const base = `http://${cfg.host}:${cfg.port}`;
+      console.log("");
+      console.log("  jevcache is running");
+      console.log(`  Proxy   ${base}/v1`);
+      console.log(`  Stats   ${base}/stats`);
+      printWireSnippets(base);
+      if (!quiet) {
+        console.log("  Hits print here as HIT (exact|jev) · saved · total.");
+        console.log("  Set JEVCACHE_QUIET=1 to hide them.");
+        console.log("");
+      }
+      if (!cfg.openrouterApiKey && !cfg.mockJev) {
+        console.log("  Note: no OPENROUTER_API_KEY → exact-cache only (no Jev semantic)");
+      }
+      if (cfg.mockJev) console.log("  MOCK_JEV=1");
+      if (cfg.mockUpstream) console.log("  MOCK_UPSTREAM=1");
+      if (!forceDemo) {
+        console.log("  Tip: jevcache start --demo  → live MISS then HIT");
+        console.log("");
+      }
+      resolve();
+    });
+  });
+
+  const wantDemo = forceDemo ? true : await askDemo();
+  if (wantDemo) {
+    const key =
+      cfg.upstreamApiKey ||
+      cfg.openrouterApiKey ||
+      process.env.UPSTREAM_API_KEY ||
+      process.env.OPENROUTER_API_KEY ||
+      "";
+    if (!key && !cfg.mockUpstream) {
+      console.warn("  Demo skipped — no upstream API key.");
+    } else {
+      const base = `http://${cfg.host}:${cfg.port}`;
+      await runLiveDemo(base, key || "mock");
+    }
+  }
 
   const shutdown = () => {
     console.log("\nshutting down…");
@@ -170,7 +312,8 @@ async function startServer(): Promise<void> {
   process.on("SIGINT", shutdown);
 }
 
-const raw = process.argv[2];
+const args = process.argv.slice(2).filter((a) => !a.startsWith("-"));
+const raw = args[0];
 const cmd = (raw || "start").toLowerCase();
 if (cmd === "help" || cmd === "-h" || cmd === "--help") {
   printHelp();

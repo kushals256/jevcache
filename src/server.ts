@@ -28,6 +28,18 @@ import {
 import { RateLimiter } from "./rate_limit.js";
 import { preview } from "./redact.js";
 
+export type CacheHitEvent = {
+  tier: "exact" | "jev";
+  savedUsd: number;
+  totalSavedUsd: number;
+  preview: string;
+  intent?: number;
+};
+
+export type AppHooks = {
+  onHit?: (event: CacheHitEvent) => void;
+};
+
 export type App = {
   app: Hono;
   store: CacheStore;
@@ -47,12 +59,28 @@ function requireAdmin(c: { req: { header: (n: string) => string | undefined } },
   return c.req.header("X-Jevcache-Admin") === cfg.adminToken;
 }
 
-export function createApp(cfg: Config): App {
+export function createApp(cfg: Config, hooks: AppHooks = {}): App {
   const store = new CacheStore(cfg.dataDir);
   const stats = createStats();
   const flight = new SingleFlight();
   const limiter = new RateLimiter(cfg.rateLimitRpm);
   const app = new Hono();
+
+  const emitHit = (
+    tier: "exact" | "jev",
+    savedUsd: number,
+    textPreview: string,
+    intent?: number,
+  ) => {
+    recordHit(stats, tier, textPreview, intent);
+    hooks.onHit?.({
+      tier,
+      savedUsd,
+      totalSavedUsd: stats.saved_usd,
+      preview: textPreview,
+      intent,
+    });
+  };
 
   if (cfg.corsOrigin) {
     app.use("*", async (c, next) => {
@@ -202,7 +230,7 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
       stats.hits_exact += 1;
       stats.saved_usd += exact.est_cost_usd;
       pushLatency(stats.latency_hit_ms, Date.now() - t0);
-      recordHit(stats, "exact", preview(exact.user_text));
+      emitHit("exact", exact.est_cost_usd, preview(exact.user_text));
       applyHeaders(c, hitHeaders("HIT", "exact", exact.est_cost_usd, exact.id));
       return c.json(hitBody(exact.response_json, exact.id));
     }
@@ -274,13 +302,13 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
       else stats.hits_jev += 1;
       stats.saved_usd += value.entry.est_cost_usd;
       pushLatency(stats.latency_hit_ms, Date.now() - t0);
-      recordHit(
-        stats,
-        value.kind === "exact" ? "exact" : "jev",
+      const tier = value.kind === "exact" ? "exact" : "jev";
+      emitHit(
+        tier,
+        value.entry.est_cost_usd,
         preview(value.entry.user_text),
         value.kind === "jev" ? value.noul : undefined,
       );
-      const tier = value.kind === "exact" ? "exact" : "jev";
       applyHeaders(c, hitHeaders("HIT", tier, value.entry.est_cost_usd, value.entry.id, value.kind === "jev" ? value.noul : undefined));
       return c.json(hitBody(value.entry.response_json, value.entry.id));
     }
