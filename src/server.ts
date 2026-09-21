@@ -15,7 +15,12 @@ import { decidePolicy } from "./policy.js";
 import { CacheStore } from "./store/sqlite.js";
 import { SingleFlight } from "./singleflight.js";
 import { admitSameIntent } from "./jev_admit.js";
-import { recentCandidates, entryIdForChoice, type RankedCandidate } from "./candidates.js";
+import {
+  recentCandidates,
+  entryIdForChoice,
+  maxCandidateAgeMs,
+  type RankedCandidate,
+} from "./candidates.js";
 import { forwardChatCompletions, forwardModels, usageFromBody } from "./upstream.js";
 import { estimateCostUsd } from "./prices.js";
 import {
@@ -27,6 +32,13 @@ import {
 } from "./stats.js";
 import { RateLimiter } from "./rate_limit.js";
 import { preview } from "./redact.js";
+import {
+  classifyFreshness,
+  isFreshEnough,
+  ttlMsForClass,
+  type FreshnessClass,
+  type FreshnessTtls,
+} from "./freshness.js";
 
 export type CacheHitEvent = {
   tier: "exact" | "jev";
@@ -91,7 +103,14 @@ export function createApp(cfg: Config, hooks: AppHooks = {}): App {
   if (cfg.corsOrigin) {
     app.use("*", async (c, next) => {
       c.header("Access-Control-Allow-Origin", cfg.corsOrigin);
-      c.header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Jevcache-Admin, X-Jevcache-Tenant, X-Jevcache-Bypass");
+      c.header(
+        "Access-Control-Allow-Headers",
+        "Authorization, Content-Type, X-Jevcache-Admin, X-Jevcache-Tenant, X-Jevcache-Bypass, X-Jevcache-Max-Age-Seconds",
+      );
+      c.header(
+        "Access-Control-Expose-Headers",
+        "X-Jevcache, X-Jevcache-Tier, X-Jevcache-Saved-USD, X-Jevcache-Entry-Id, X-Jevcache-Intent, X-Jevcache-Freshness, X-Jevcache-Reason",
+      );
       c.header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
       if (c.req.method === "OPTIONS") return c.body(null, 204);
       await next();
@@ -135,6 +154,7 @@ h1{font-size:1.4rem} .grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem
 <div class="card"><div class="muted">Est. net saved</div><div class="big">$${(s.net_saved_usd).toFixed(4)}</div></div>
 <div class="card"><div class="muted">Hits exact / jev</div><div class="big">${s.hits_exact} / ${s.hits_jev}</div></div>
 <div class="card"><div class="muted">Miss / bypass</div><div class="big">${s.misses} / ${s.bypasses}</div></div>
+<div class="card"><div class="muted">Freshness rejects</div><div class="big">${s.freshness_rejects}</div></div>
 <div class="card"><div class="muted">Upstream $</div><div>$${s.upstream_spend_usd.toFixed(4)}</div></div>
 <div class="card"><div class="muted">Jev $</div><div>$${s.jev_spend_usd.toFixed(4)}</div></div>
 </div>
@@ -143,7 +163,7 @@ ${s.cost_inversion_warning ? "<p class=muted>Warning: Jev spend high vs savings 
 <table><tr><th>Tier</th><th>Intent</th><th>Preview</th></tr>
 ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? "—"}</td><td>${escapeHtml(h.preview)}</td></tr>`).join("")}
 </table>
-<p class="muted">uptime ${(Date.now() - s.started_at) / 1000 | 0}s · schema admit-v1 · single-node SQLite</p>
+<p class="muted">uptime ${(Date.now() - s.started_at) / 1000 | 0}s · schema admit-v2 · freshness ${cfg.freshnessMode} · single-node SQLite</p>
 </body></html>`;
     return c.html(html);
   });
@@ -201,13 +221,15 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
       return c.json({ error: { message: "messages required" } }, 400);
     }
 
-    if (c.req.header("X-Jevcache-Bypass") === "1") {
-      return bypassUpstream(c, cfg, body, stats, t0, "client_bypass");
-    }
-
-    const policy = decidePolicy(body, cfg.temperatureMax);
     const auth = c.req.header("Authorization");
     const upstreamKey = bearer(auth) || cfg.upstreamApiKey;
+
+    if (c.req.header("X-Jevcache-Bypass") === "1") {
+      return bypassUpstream(c, cfg, body, stats, t0, "client_bypass", upstreamKey);
+    }
+
+    const policy = decidePolicy(body, cfg.temperatureMax, { freshnessMode: cfg.freshnessMode });
+    const ttls = freshnessTtls(cfg);
     if (!upstreamKey && policy.mode === "bypass") {
       return c.json({ error: { message: "missing upstream API key" } }, 401);
     }
@@ -216,9 +238,23 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
       return bypassUpstream(c, cfg, body, stats, t0, policy.reason, upstreamKey);
     }
 
+    // Opt-in sample bypass (default 0) — popularity lock-in guard
+    if (cfg.freshnessSampleBypass > 0 && Math.random() < cfg.freshnessSampleBypass) {
+      stats.freshness_sample_bypass += 1;
+      return bypassUpstream(c, cfg, body, stats, t0, "freshness_sample_bypass", upstreamKey);
+    }
+
     if (!upstreamKey) {
       return c.json({ error: { message: "missing upstream API key (Authorization or UPSTREAM_API_KEY)" } }, 401);
     }
+
+    const userText = lastUserText(body.messages);
+    const reqClass: FreshnessClass =
+      cfg.freshnessMode === "off" ? "stable" : policy.freshness;
+    const headerMaxAge = parseMaxAgeSeconds(c.req.header("X-Jevcache-Max-Age-Seconds"));
+    const classTtlMs = ttlMsForClass(reqClass, ttls, 0);
+    const maxAgeMs =
+      headerMaxAge != null ? headerMaxAge * 1000 : classTtlMs > 0 ? classTtlMs : undefined;
 
     const tenant = tenantFromAuth(auth, c.req.header("X-Jevcache-Tenant"));
     const model = String(body.model ?? "unknown");
@@ -232,30 +268,51 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
     const key = exactKey(ns, body);
 
     const exact = store.getByExactKey(key);
-    if (exact) {
+    if (exact && entryFreshForRequest(exact.created_at, reqClass, ttls, cfg, headerMaxAge)) {
       stats.hits_exact += 1;
       stats.saved_usd += exact.est_cost_usd;
       pushLatency(stats.latency_hit_ms, Date.now() - t0);
       emitHit("exact", exact.est_cost_usd, preview(exact.user_text));
-      applyHeaders(c, hitHeaders("HIT", "exact", exact.est_cost_usd, exact.id));
+      applyHeaders(c, hitHeaders("HIT", "exact", exact.est_cost_usd, exact.id, undefined, reqClass));
       return c.json(hitBody(exact.response_json, exact.id));
+    }
+    if (exact && cfg.freshnessMode === "on") {
+      stats.freshness_rejects += 1;
+      if (cfg.shadow) {
+        console.error(
+          `[jevcache] freshness_reject exact age_ms=${Date.now() - exact.created_at} class=${reqClass}`,
+        );
+      }
     }
 
     const { value, shared } = await flight.do(key, async () => {
       const again = store.getByExactKey(key);
-      if (again) return { kind: "exact" as const, entry: again };
+      if (again && entryFreshForRequest(again.created_at, reqClass, ttls, cfg, headerMaxAge)) {
+        return { kind: "exact" as const, entry: again };
+      }
+      if (again && cfg.freshnessMode === "on") {
+        stats.freshness_rejects += 1;
+      }
 
       if (policy.mode === "full" && (cfg.openrouterApiKey || cfg.mockJev)) {
-        const cands: RankedCandidate[] = recentCandidates(store, ns, cfg.candidateK, key);
+        const cands: RankedCandidate[] = recentCandidates(store, ns, cfg.candidateK, key, {
+          maxAgeMs: cfg.freshnessMode === "on" ? maxAgeMs : undefined,
+        });
         if (cands.length) {
+          const oldestAge = maxCandidateAgeMs(cands);
+          const askReuseFresh =
+            cfg.freshnessMode === "on" &&
+            reqClass !== "live" &&
+            oldestAge >= cfg.freshnessJevMinAgeMs;
           const admit = await admitSameIntent({
             apiKey: cfg.openrouterApiKey || "mock",
             model: cfg.jevModel,
-            newText: lastUserText(body.messages),
+            newText: userText,
             candidates: cands.map(({ id, text }) => ({ id, text })),
             threshold: cfg.intentThreshold,
             maxStateChars: cfg.maxStateChars,
             timeoutMs: cfg.jevTimeoutMs,
+            askReuseFresh,
           });
           stats.jev_spend_usd += admit.ok ? admit.costUsd : 0;
           if (!admit.ok) {
@@ -263,9 +320,16 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
           } else if (admit.admit && !cfg.shadow) {
             const eid = entryIdForChoice(cands, admit.best);
             const entry = eid ? store.getById(eid) : null;
-            if (entry) {
+            if (entry && entryFreshForRequest(entry.created_at, reqClass, ttls, cfg, headerMaxAge)) {
               return { kind: "jev" as const, entry, noul: admit.noul };
             }
+            if (entry && cfg.freshnessMode === "on") {
+              stats.freshness_rejects += 1;
+            }
+          } else if (admit.ok && !admit.admit && askReuseFresh && cfg.shadow) {
+            console.error(
+              `[jevcache] freshness_shadow reuse_fresh noul=${admit.noul} reuse=${admit.reuseFresh}`,
+            );
           }
         }
       } else if (policy.mode === "full" && !cfg.openrouterApiKey) {
@@ -283,18 +347,29 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
       }
       const usage = usageFromBody(up.body);
       const est = estimateCostUsd(model, usage.prompt, usage.completion);
+      const storeClass =
+        cfg.freshnessMode === "off" ? ("stable" as const) : classifyFreshness(userText);
+      const now = Date.now();
+      const ttlMs =
+        cfg.freshnessMode === "off"
+          ? cfg.ttlSeconds * 1000
+          : ttlMsForClass(storeClass, ttls, cfg.freshnessJitterPct);
+      // live should not store (bypassed above); if somehow here, expire immediately
+      const expires_at = ttlMs <= 0 ? now : now + ttlMs;
       const entry = store.upsert(
         {
           namespace: ns,
           exact_key: key,
-          user_text: lastUserText(body.messages),
+          user_text: userText,
           response_json: JSON.stringify(up.body),
           model,
           prompt_tokens: usage.prompt,
           completion_tokens: usage.completion,
           est_cost_usd: est,
-          created_at: Date.now(),
-          expires_at: Date.now() + cfg.ttlSeconds * 1000,
+          created_at: now,
+          expires_at,
+          freshness_class: storeClass,
+          as_of: now,
         },
         cfg.maxEntries,
       );
@@ -315,7 +390,17 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
         preview(value.entry.user_text),
         value.kind === "jev" ? value.noul : undefined,
       );
-      applyHeaders(c, hitHeaders("HIT", tier, value.entry.est_cost_usd, value.entry.id, value.kind === "jev" ? value.noul : undefined));
+      applyHeaders(
+        c,
+        hitHeaders(
+          "HIT",
+          tier,
+          value.entry.est_cost_usd,
+          value.entry.id,
+          value.kind === "jev" ? value.noul : undefined,
+          reqClass,
+        ),
+      );
       return c.json(hitBody(value.entry.response_json, value.entry.id));
     }
 
@@ -333,7 +418,7 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
       spentUsd: value.est,
       preview: preview(value.entry.user_text),
     });
-    applyHeaders(c, hitHeaders("MISS", "none", 0, value.entry.id));
+    applyHeaders(c, hitHeaders("MISS", "none", 0, value.entry.id, undefined, reqClass));
     return c.json(parsed);
   });
 
@@ -364,6 +449,24 @@ async function bypassUpstream(
   const key = upstreamKey || cfg.upstreamApiKey;
   if (!key) return c.json({ error: { message: "missing upstream API key" } }, 401);
   if (body.stream === true) {
+    if (process.env.MOCK_UPSTREAM === "1" || cfg.mockUpstream) {
+      const chunk = {
+        id: "chatcmpl-mock",
+        object: "chat.completion.chunk",
+        created: Math.floor(Date.now() / 1000),
+        model: String(body.model ?? "mock"),
+        choices: [{ index: 0, delta: { content: "MOCK_STREAM" }, finish_reason: null }],
+      };
+      const sse = `data: ${JSON.stringify(chunk)}\n\ndata: [DONE]\n\n`;
+      return new Response(sse, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/event-stream",
+          "X-Jevcache": "BYPASS",
+          "X-Jevcache-Reason": reason,
+        },
+      });
+    }
     const res = await fetch(`${cfg.upstreamBaseUrl}/chat/completions`, {
       method: "POST",
       headers: {
@@ -421,6 +524,7 @@ function hitHeaders(
   saved: number,
   entryId: string,
   intent?: number,
+  freshness?: FreshnessClass,
 ): Record<string, string> {
   const h: Record<string, string> = {
     "X-Jevcache": cache,
@@ -429,7 +533,39 @@ function hitHeaders(
     "X-Jevcache-Entry-Id": entryId,
   };
   if (intent != null) h["X-Jevcache-Intent"] = intent.toFixed(4);
+  if (freshness) h["X-Jevcache-Freshness"] = freshness;
   return h;
+}
+
+function freshnessTtls(cfg: Config): FreshnessTtls {
+  return {
+    liveSeconds: cfg.ttlLiveSeconds,
+    shortSeconds: cfg.ttlShortSeconds,
+    stableSeconds: cfg.ttlSeconds,
+    durableSeconds: cfg.ttlDurableSeconds,
+  };
+}
+
+function parseMaxAgeSeconds(raw: string | undefined): number | null {
+  if (!raw?.trim()) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return n;
+}
+
+function entryFreshForRequest(
+  createdAt: number,
+  reqClass: FreshnessClass,
+  ttls: FreshnessTtls,
+  cfg: Config,
+  headerMaxAgeSec: number | null,
+): boolean {
+  if (cfg.freshnessMode === "off") return true;
+  if (reqClass === "live") return false;
+  if (headerMaxAgeSec != null) {
+    return Date.now() - createdAt < headerMaxAgeSec * 1000;
+  }
+  return isFreshEnough(createdAt, reqClass, ttls);
 }
 
 function escapeHtml(s: string): string {

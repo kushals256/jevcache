@@ -42,3 +42,4 @@ When done, tell me: start command, baseURL, key location, whether MISS → HIT p
 1. Confirm `GET http://127.0.0.1:8080/healthz` is ok.
 2. Open `http://127.0.0.1:8080/stats` or run `jevcache status`.
 3. Keep `OPENROUTER_API_KEY` only in local `.env` (never commit).
+4. Freshness is on by default (live/short TTLs; stable agent paraphrases unchanged). Rollback: `FRESHNESS_MODE=off`.

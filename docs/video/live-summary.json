@@ -61,7 +61,7 @@
   },
   "transcript": [
     "",
-    "  $ npx @kushalicious/jevcache@0.1.5 start --demo",
+    "  $ npx @kushalicious/jevcache@0.1.6 start --demo",
     "",
     "  jevcache is running",
     "  Proxy   http://127.0.0.1:18086/v1",

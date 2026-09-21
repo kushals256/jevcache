@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>jevcache concept</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0c0d0f;
+    --panel: #15171c;
+    --line: #2a2e38;
+    --text: #f2f3f5;
+    --muted: #8b929e;
+    --dim: #5c6370;
+    --green: #3dff8a;
+    --green-dim: rgba(61, 255, 138, 0.14);
+    --green-glow: rgba(61, 255, 138, 0.45);
+    --red: #ff6b6b;
+    --red-dim: rgba(255, 107, 107, 0.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1600px; height: 900px; overflow: hidden;
+    background: var(--bg); color: var(--text);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .stage {
+    position: relative; width: 1600px; height: 900px;
+    background: radial-gradient(ellipse 70% 55% at 50% 48%, #12151c 0%, var(--bg) 70%), var(--bg);
+  }
+  .stage::before {
+    content: ""; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 75% 65% at 50% 50%, #000 20%, transparent 75%);
+    pointer-events: none;
+  }
+  .headline {
+    position: absolute; top: 64px; left: 0; right: 0;
+    text-align: center; font-size: 42px; font-weight: 600;
+    letter-spacing: -0.02em; line-height: 1.2;
+  }
+  .headline .em { color: var(--green); }
+
+  .query-bar {
+    position: absolute; top: 140px; left: 50%;
+    width: 740px; height: 52px;
+    margin-left: -370px;
+    border: 1px solid var(--line); background: var(--panel);
+    border-radius: 10px; display: flex; align-items: center; gap: 14px;
+    padding: 0 18px; font-size: 16px; color: var(--muted);
+  }
+  .query-bar .dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    background: var(--green); box-shadow: 0 0 10px var(--green-glow);
+  }
+  .query-bar .q {
+    font-family: "IBM Plex Mono", monospace; font-size: 15px;
+    font-weight: 500; color: var(--text); white-space: nowrap;
+  }
+
+  svg.wires {
+    position: absolute; inset: 0; width: 1600px; height: 900px; pointer-events: none;
+  }
+  .wires path {
+    fill: none; stroke: #3a4150; stroke-width: 1.75; stroke-linecap: round;
+  }
+  .wires path.live {
+    stroke: var(--green); stroke-width: 2.25;
+    filter: drop-shadow(0 0 4px var(--green-glow));
+  }
+
+  .col { position: absolute; top: 240px; width: 340px; }
+  .col.left { left: 100px; }
+  .col.right { right: 100px; }
+  .col-label {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--dim); margin-bottom: 16px;
+  }
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 16px 18px; margin-bottom: 12px;
+  }
+  .card .tag {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--dim); margin-bottom: 8px;
+  }
+  .card .body { font-size: 16px; font-weight: 500; line-height: 1.35; }
+  .card .meta {
+    margin-top: 10px; font-family: "IBM Plex Mono", monospace;
+    font-size: 13px; color: var(--muted);
+  }
+  .card.miss {
+    border-color: rgba(255, 107, 107, 0.35);
+    background: linear-gradient(180deg, var(--red-dim), var(--panel));
+  }
+  .card.miss .tag { color: var(--red); }
+  .card.hit {
+    border-color: rgba(61, 255, 138, 0.45);
+    background: linear-gradient(180deg, var(--green-dim), var(--panel));
+    box-shadow: 0 0 24px rgba(61, 255, 138, 0.12);
+  }
+  .card.hit .tag { color: var(--green); }
+  .score-bar {
+    margin-top: 12px; height: 6px; background: #22262f;
+    border-radius: 3px; overflow: hidden;
+  }
+  .score-bar > span {
+    display: block; height: 100%; width: 0%;
+    background: linear-gradient(90deg, #1faa55, var(--green));
+    border-radius: 3px; box-shadow: 0 0 8px var(--green-glow);
+  }
+
+  .hub {
+    position: absolute; left: 50%; top: 400px;
+    width: 280px; margin-left: -140px; margin-top: -70px;
+    padding: 28px 24px 24px; text-align: center;
+    background: linear-gradient(180deg, #152018 0%, #101612 100%);
+    border: 1.5px solid rgba(61, 255, 138, 0.55);
+    border-radius: 16px;
+    box-shadow:
+      0 0 0 1px rgba(61, 255, 138, 0.08),
+      0 0 40px rgba(61, 255, 138, 0.22),
+      0 20px 60px rgba(0, 0, 0, 0.45);
+  }
+  .hub .name {
+    font-size: 28px; font-weight: 700; letter-spacing: -0.03em;
+    color: var(--green); text-shadow: 0 0 24px rgba(61, 255, 138, 0.35);
+  }
+  .hub .sub {
+    margin-top: 8px; font-family: "IBM Plex Mono", monospace;
+    font-size: 14px; font-weight: 500; color: rgba(61, 255, 138, 0.75);
+  }
+  .hub .intent {
+    margin-top: 18px; display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-radius: 8px;
+    background: rgba(61, 255, 138, 0.1);
+    border: 1px solid rgba(61, 255, 138, 0.25);
+    font-family: "IBM Plex Mono", monospace; font-size: 15px;
+    font-weight: 600; color: var(--green);
+  }
+
+  .punch {
+    position: absolute; bottom: 78px; left: 0; right: 0;
+    text-align: center; font-size: 22px; font-weight: 500;
+    color: var(--muted); letter-spacing: -0.01em;
+  }
+  .punch strong { color: var(--text); font-weight: 600; }
+  .brand {
+    position: absolute; bottom: 28px; right: 36px;
+    font-family: "IBM Plex Mono", monospace; font-size: 13px; color: var(--dim);
+  }
+
+  /* driven by JS */
+  .a { opacity: 0; will-change: opacity, transform; }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="headline a" data-in="0.05" data-dur="0.45">Two prompts. Same intent. <span class="em">Why call twice?</span></div>
+
+    <div class="query-bar a" data-in="0.45" data-dur="0.4" data-y="10">
+      <span class="dot"></span>
+      <span class="q">agent → OpenAI-compatible chat · paraphrases of “explain mutexes”</span>
+    </div>
+
+    <svg class="wires" viewBox="0 0 1600 900" aria-hidden="true">
+      <path class="live" id="p1" d="M440 310 C530 310, 580 360, 660 390" pathLength="100" />
+      <path class="live" id="p2" d="M440 400 C530 400, 580 400, 660 400" pathLength="100" />
+      <path id="p3" d="M940 380 C1040 340, 1100 310, 1160 300" pathLength="100" />
+      <path class="live" id="p4" d="M940 410 C1040 450, 1100 470, 1160 475" pathLength="100" />
+    </svg>
+
+    <div class="col left">
+      <div class="col-label a" data-in="0.85" data-dur="0.35">Incoming</div>
+      <div class="card a" data-in="1.0" data-dur="0.45" data-x="-18">
+        <div class="tag">Prompt A</div>
+        <div class="body">“Explain mutexes simply please”</div>
+        <div class="meta">first call · cold</div>
+      </div>
+      <div class="card a" data-in="1.25" data-dur="0.45" data-x="-18">
+        <div class="tag">Prompt B</div>
+        <div class="body">“Please explain mutexes simply”</div>
+        <div class="meta">paraphrase · same ask</div>
+      </div>
+    </div>
+
+    <div class="hub a" data-in="1.7" data-dur="0.5" data-scale="0.92">
+      <div class="name">jevcache</div>
+      <div class="sub">query + intent</div>
+      <div class="intent a" data-in="2.65" data-dur="0.4" data-y="8">match · 0.94</div>
+    </div>
+
+    <div class="col right">
+      <div class="col-label a" data-in="3.35" data-dur="0.35">Result</div>
+      <div class="card miss a" data-in="3.5" data-dur="0.45" data-x="18">
+        <div class="tag">Miss · upstream</div>
+        <div class="body">2817ms</div>
+        <div class="meta">paid the model once</div>
+      </div>
+      <div class="card hit a" data-in="3.85" data-dur="0.5" data-x="18">
+        <div class="tag">Hit · jev</div>
+        <div class="body">423ms · ~6.7× faster</div>
+        <div class="meta">same reply · intent 0.94</div>
+        <div class="score-bar"><span id="bar"></span></div>
+      </div>
+    </div>
+
+    <div class="punch a" data-in="5.1" data-dur="0.5" data-y="10">The first call hits upstream. <strong>The rest skip it.</strong></div>
+    <div class="brand a" data-in="5.45" data-dur="0.35">github.com/kushals256/jevcache</div>
+  </div>
+
+  <script>
+    const DUR = 7.2;
+    const paths = [
+      { el: document.getElementById("p1"), in: 2.05, dur: 0.5 },
+      { el: document.getElementById("p2"), in: 2.2, dur: 0.5 },
+      { el: document.getElementById("p3"), in: 3.1, dur: 0.45 },
+      { el: document.getElementById("p4"), in: 3.25, dur: 0.45 },
+    ];
+    paths.forEach(({ el }) => {
+      el.style.strokeDasharray = "100";
+      el.style.strokeDashoffset = "100";
+      el.style.opacity = "0";
+    });
+
+    function easeOut(t) {
+      return 1 - Math.pow(1 - t, 3);
+    }
+    function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+
+    function applyAt(sec) {
+      document.querySelectorAll(".a").forEach((el) => {
+        const tin = Number(el.dataset.in || 0);
+        const dur = Number(el.dataset.dur || 0.4);
+        const p = clamp01((sec - tin) / dur);
+        const e = easeOut(p);
+        const x = Number(el.dataset.x || 0);
+        const y = Number(el.dataset.y || 0);
+        const scale = Number(el.dataset.scale || 1);
+        el.style.opacity = String(e);
+        const tx = x * (1 - e);
+        const ty = y * (1 - e);
+        const sc = scale + (1 - scale) * e;
+        if (x || y || scale !== 1) {
+          el.style.transform = `translate(${tx}px, ${ty}px) scale(${sc})`;
+        } else {
+          el.style.transform = "";
+        }
+      });
+
+      paths.forEach(({ el, in: tin, dur }) => {
+        const p = clamp01((sec - tin) / dur);
+        const e = easeOut(p);
+        el.style.opacity = String(e);
+        el.style.strokeDashoffset = String(100 * (1 - e));
+      });
+
+      const bar = document.getElementById("bar");
+      const bp = clamp01((sec - 4.3) / 0.65);
+      bar.style.width = `${94 * easeOut(bp)}%`;
+
+      // soft hub pulse after reveal
+      const hub = document.querySelector(".hub");
+      if (sec > 2.3) {
+        const pulse = 0.5 + 0.5 * Math.sin((sec - 2.3) * Math.PI * 1.1);
+        const glow = 22 + pulse * 18;
+        hub.style.boxShadow =
+          `0 0 0 1px rgba(61,255,138,0.08), 0 0 ${glow}px rgba(61,255,138,${0.18 + pulse * 0.12}), 0 20px 60px rgba(0,0,0,0.45)`;
+      }
+    }
+
+    // Expose for renderer
+    window.__seek = applyAt;
+    window.__duration = DUR;
+    window.__ready = document.fonts.ready.then(() => {
+      applyAt(0);
+      document.documentElement.dataset.ready = "1";
+      return true;
+    });
+
+    // Live preview if ?play=1
+    const params = new URLSearchParams(location.search);
+    if (params.get("play") === "1") {
+      window.__ready.then(() => {
+        const t0 = performance.now();
+        function tick(now) {
+          const sec = Math.min(DUR, (now - t0) / 1000);
+          applyAt(sec);
+          if (sec < DUR) requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+      });
+    }
+  </script>
+</body>
+</html>

@@ -45,10 +45,14 @@ describe("policy", () => {
     expect(decidePolicy({ messages: [{ role: "user", content: "x" }], tools: [] }, 0.3).reason).toBe("tools");
   });
   it("exact_only for high temperature", () => {
-    expect(decidePolicy({ messages: [{ role: "user", content: "x" }], temperature: 0.9 }, 0.3).mode).toBe("exact_only");
+    const r = decidePolicy({ messages: [{ role: "user", content: "x" }], temperature: 0.9 }, 0.3);
+    expect(r.mode).toBe("exact_only");
+    expect(r.freshness).toBe("stable");
   });
   it("full for normal", () => {
-    expect(decidePolicy({ messages: [{ role: "user", content: "explain sorting" }], temperature: 0 }, 0.3).mode).toBe("full");
+    const r = decidePolicy({ messages: [{ role: "user", content: "explain sorting" }], temperature: 0 }, 0.3);
+    expect(r.mode).toBe("full");
+    expect(r.freshness).toBe("stable");
   });
 });
 

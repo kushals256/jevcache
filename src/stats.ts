@@ -8,6 +8,8 @@ export type Stats = {
   jev_errors: number;
   upstream_errors: number;
   coalesced: number;
+  freshness_rejects: number;
+  freshness_sample_bypass: number;
   jev_spend_usd: number;
   upstream_spend_usd: number;
   saved_usd: number;
@@ -27,6 +29,8 @@ export function createStats(): Stats {
     jev_errors: 0,
     upstream_errors: 0,
     coalesced: 0,
+    freshness_rejects: 0,
+    freshness_sample_bypass: 0,
     jev_spend_usd: 0,
     upstream_spend_usd: 0,
     saved_usd: 0,

@@ -174,6 +174,9 @@ For **Jev same-intent** hits: yes. For **exact-only**: any OpenAI-compatible ups
 
 **Multi-agent only?** No — any repeating/paraphrasing chat client benefits.
 
+**Stale answers / freshness?**  
+Precision-first classes: `live` (bypass), `short` (~15m), `stable` (`TTL_SECONDS`, default 24h), `durable` (same as stable unless `TTL_DURABLE_SECONDS`). Exact + Jev paths enforce hard age; older candidates also get a same-call `reuse_fresh` check (`admit-v2`). Demos stay safe: `reuse_fresh` only if age ≥ 5m (`FRESHNESS_JEV_MIN_AGE_MS`). Rollback: `FRESHNESS_MODE=off`.
+
 **Native build tools?** No longer required for SQLite (Node built-in). Requires **Node ≥ 22.5**.
 
 **Secrets in this repo?** No. Local `.env` only (gitignored).

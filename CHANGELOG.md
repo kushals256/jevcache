@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.6 — 2026-09-21
+- **Temporal freshness (admit-v2):** precision-first classes (`live` / `short` / `stable` / `durable`), class TTLs + jitter, hard age filter on exact + Jev candidates, same-call `reuse_fresh` when candidate age ≥ `FRESHNESS_JEV_MIN_AGE_MS` (default 5m — demos stay HIT).
+- Live requests bypass (wins over high-temperature `exact_only`). Rollback: `FRESHNESS_MODE=off` restores legacy volatile regex + single `TTL_SECONDS`.
+- Store columns `freshness_class` / `as_of`; stats `freshness_rejects`; headers `X-Jevcache-Freshness`, optional `X-Jevcache-Max-Age-Seconds`.
+- Fix: `X-Jevcache-Bypass` now uses the request `Authorization` key (not only `UPSTREAM_API_KEY`).
+- Fix: stream bypass respects `MOCK_UPSTREAM` (no real network in mock/demo).
+
 ## 0.1.5 — 2026-09-19
 - **No native SQLite compile** — `node:sqlite` (Node ≥ 22.5); `npx` bin enables `--experimental-sqlite`.
 - `jevcache init` writes `OPENAI_BASE_URL` (and related) into the app `.env`.

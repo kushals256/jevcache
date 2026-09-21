@@ -109,7 +109,7 @@ try {
   };
 
   p("");
-  p("  $ npx @kushalicious/jevcache@0.1.5 start --demo");
+  p("  $ npx @kushalicious/jevcache@0.1.6 start --demo");
   p("");
   p("  jevcache is running");
   p(`  Proxy   ${BASE}/v1`);
