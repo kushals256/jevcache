@@ -7,9 +7,12 @@
 
 **Routers pick a model. jevcache decides whether to call one.**
 
-A local OpenAI-compatible **chat response cache**: when your app asks the **same question in different words**, [TypeSafe Jev](https://typesafe.ai) can reuse the cached answer — so you skip another expensive chat call.
+A local OpenAI-compatible **chat response cache**: when your app asks the **same question in different words**, a **same-intent adjudicator** can reuse the cached answer — so you skip another expensive chat call.
 
-Not cosine similarity. Calibrated **same-intent** admits. If Jev errors, it **fails open** and still calls the model. Same intent is only reused while **freshness** allows — stale “latest” refuses (see `/stats` `freshness_rejects` and `X-Jevcache-Reason`).
+**Default:** cloud [TypeSafe Jev](https://typesafe.ai) via OpenRouter.  
+**Also works locally:** point the same proxy at **Kev**, **Laya**, **Laya MLX**, or any **System One**-compatible server on your machine — no OpenRouter key required for admits.
+
+Not cosine similarity. Calibrated **same-intent** admits. If the adjudicator errors, it **fails open** and still calls the model. Same intent is only reused while **freshness** allows — stale “latest” refuses (see `/stats` `freshness_rejects` and `X-Jevcache-Reason`).
 
 <p align="center">
   <img src="docs/demo.gif" alt="Demo: start → MISS → HIT → /stats" width="720" />
@@ -17,7 +20,7 @@ Not cosine similarity. Calibrated **same-intent** admits. If Jev errors, it **fa
 
 ```
 call 1  "Explain mutexes simply please"     →  MISS   ~3.2s   (calls the model, stores answer)
-call 2  "Please explain mutexes simply"     →  HIT    ~0.4s   (jev · same answer · saved $)
+call 2  "Please explain mutexes simply"     →  HIT    ~0.4s   (same intent · same answer · saved $)
 ```
 
 **Verified on a real app:** MISS `3244ms` → HIT (`jev`, intent `0.93`) `394ms`, same cached reply, est. saved `$0.000137`.
@@ -29,13 +32,35 @@ Works with one script, one agent, or many — anything that speaks `/v1/chat/com
 
 ---
 
+## Adjudicators: cloud Jev or local System One
+
+| Mode | Env | Needs OpenRouter for admit? |
+| --- | --- | --- |
+| **Jev** (default) | omit `ADJUDICATOR` | Yes — `OPENROUTER_API_KEY` |
+| **Kev** (local) | `ADJUDICATOR=kev` | No — default `http://127.0.0.1:8008` |
+| **Laya** (local) | `ADJUDICATOR=laya` | No — default `http://127.0.0.1:8000` |
+| **Laya MLX** | `ADJUDICATOR=laya-mlx` | No |
+| **Any System One** | `ADJUDICATOR=systemone` + URL + model | No (unless your server requires a key) |
+
+```bash
+# Local Kev — semantic hits without OpenRouter
+ADJUDICATOR=kev npx @kushalicious/jevcache@latest start
+
+# Local Laya
+ADJUDICATOR=laya npx @kushalicious/jevcache@latest start
+```
+
+Upstream chat still needs a real model API key (or `MOCK_UPSTREAM=1` for a keyless demo). Details: [Advanced: adjudicator backends](#advanced-adjudicator-backends).
+
+---
+
 ## Principles
 
 - **Drop-in proxy** — change `baseURL`; no SDK required.
 - **Precision-first** — prefer miss over a wrong HIT. Judge success by false-HIT rate, not raw hit rate.
 - **Fail-open** — adjudicator errors never invent answers; upstream still runs.
 - **Time in the loop** — same intent ≠ forever valid.
-- **Jev by default** — omit `ADJUDICATOR` for cloud Jev; set `ADJUDICATOR=kev|laya` only when a local System One server is running.
+- **Jev by default, local opt-in** — cloud Jev out of the box; `ADJUDICATOR=kev|laya|…` for on-machine System One.
 
 ### Claims we do **not** make (yet)
 
@@ -75,7 +100,7 @@ Do ALL of the following without asking me to run terminal commands myself (you r
       (fallback: npx --yes github:kushals256/jevcache doctor)
    b) If that fails, use Docker with ghcr.io/kushals256/jevcache:latest on port 8080
    c) Or clone into ../jevcache, npm install, npm run build.
-3. Ask me ONCE for an OpenRouter API key (https://openrouter.ai/keys) if OPENROUTER_API_KEY is not set. Save to .env (never commit; ensure .gitignore has .env).
+3. Ask me ONCE for an OpenRouter API key (https://openrouter.ai/keys) if OPENROUTER_API_KEY is not set AND I am not using a local adjudicator. If I want local Kev/Laya instead, set ADJUDICATOR=kev (or laya) and skip the OpenRouter key for admits. Save keys to .env (never commit; ensure .gitignore has .env).
 4. Run: npx @kushalicious/jevcache init  (writes OPENAI_BASE_URL into .env)
 5. Start jevcache in the background on http://127.0.0.1:8080 and verify GET /healthz.
 6. Wire THIS app so OpenAI-compatible clients use baseURL "http://127.0.0.1:8080/v1".
@@ -88,7 +113,7 @@ Do not commit secrets. If install fails, try the next method (npx → docker →
 When done, tell me: start command, baseURL, key location, whether MISS → HIT passed, stats URL.
 ```
 
-You’ll need an [OpenRouter](https://openrouter.ai/keys) key when the agent asks (for real Jev hits). Prefer this path if you’re already in Cursor / Claude Code / Windsurf.
+You’ll need an [OpenRouter](https://openrouter.ai/keys) key when the agent asks **if you want cloud Jev**. For local Kev/Laya instead, tell the agent to set `ADJUDICATOR=kev` (or `laya`) and skip the OpenRouter prompt for admits. Prefer this path if you’re already in Cursor / Claude Code / Windsurf.
 
 ---
 
@@ -108,13 +133,17 @@ You’ll get a key prompt, wiring snippets (`OPENAI_BASE_URL` in `.env`), a live
 | **Docker** | `ghcr.io/kushals256/jevcache:latest` |
 | **Agent setup** | [`AGENT_SETUP.md`](./AGENT_SETUP.md) ← paste into a new chat |
 
-**No OpenRouter key?** still try the flow:
+**No OpenRouter key?** You still have options:
 
 ```bash
+# A) Local System One (Kev/Laya) — real semantic admits on localhost
+ADJUDICATOR=kev MOCK_UPSTREAM=1 npx @kushalicious/jevcache@latest start --demo
+
+# B) Synthetic demo (no real adjudicator)
 MOCK_JEV=1 MOCK_UPSTREAM=1 npx @kushalicious/jevcache@latest start --demo
 ```
 
-Without a key, the proxy runs in **exact-only mode** (paraphrases miss; identical prompts can hit). You’ll see a clear banner on start.
+With neither a Jev key nor a local adjudicator, the proxy runs in **exact-only mode** (paraphrases miss; identical prompts can hit). You’ll see a clear banner on start.
 
 ---
 
@@ -197,7 +226,10 @@ Or: `docker compose up` (single service).
 ## FAQ
 
 **Do I need OpenRouter?**  
-For **Jev same-intent** hits: yes. For **exact-only**: any OpenAI-compatible upstream. For a **keyless demo**: `MOCK_JEV=1 MOCK_UPSTREAM=1`.
+For **default cloud Jev** admits: yes (`OPENROUTER_API_KEY`). For **local Kev/Laya/System One**: no OpenRouter key for admits — run your local server and set `ADJUDICATOR=kev|laya|…`. Upstream chat still needs a model API key (or `MOCK_UPSTREAM=1`). For a **fully keyless synthetic demo**: `MOCK_JEV=1 MOCK_UPSTREAM=1`.
+
+**Does it work fully offline / on my laptop?**  
+Yes for the **adjudicator** path: Kev, Laya, Laya MLX, or any System One HTTP server on `127.0.0.1`. The proxy itself always runs locally. Upstream generation is whatever you configure (`UPSTREAM_BASE_URL`) — OpenRouter, another cloud API, or mock.
 
 **Multi-agent only?** No — any repeating/paraphrasing chat client benefits.
 
@@ -214,16 +246,20 @@ Precision-first classes: `live` (bypass), `short` (~15m), `stable` (`TTL_SECONDS
 
 ## Advanced: adjudicator backends
 
-Happy path: **omit** `ADJUDICATOR` — default is **Jev** via OpenRouter Decisions (same as before).
+Same story as [Adjudicators: cloud Jev or local System One](#adjudicators-cloud-jev-or-local-system-one) — defaults and env knobs in one place.
 
-| Value | Status |
+Happy path: **omit** `ADJUDICATOR` — default is **Jev** via OpenRouter Decisions.
+
+| Value | What it does |
 | --- | --- |
 | `jev` (default) | TypeSafe Jev via OpenRouter Decisions (`OPENROUTER_API_KEY` required) |
 | `mock` | Synthetic same-intent (`MOCK_JEV=1` also selects this) |
-| `kev` | Local System One — default `http://127.0.0.1:8008`, model `kev-latest` |
-| `laya` | Local System One — default `http://127.0.0.1:8000`, model `laya-latest` |
+| `kev` | **Local** System One — default `http://127.0.0.1:8008`, model `kev-latest` |
+| `laya` | **Local** System One — default `http://127.0.0.1:8000`, model `laya-latest` |
 | `laya-mlx` | Like `laya`; optional `LAYA_MLX_URL` / `LAYA_MLX_MODEL` |
-| `systemone` / `local` | Generic System One — **requires** `ADJUDICATOR_URL` + `ADJUDICATOR_MODEL` |
+| `systemone` / `local` | Any System One host — **requires** `ADJUDICATOR_URL` + `ADJUDICATOR_MODEL` |
+
+Works with **any System One–compatible model** you run (Kev, Laya, custom). There is no official local Jev binary in this path — local = System One.
 
 **Local example (Kev):**
 
@@ -240,7 +276,7 @@ Optional env:
 - `ADJUDICATOR_API_KEY` — optional Bearer for System One (empty = no Auth header on localhost).
 - `ADJUDICATOR_TIMEOUT_MS` — admit timeout (alias of `JEV_TIMEOUT_MS`).
 
-**FAQ:** There is **no official local Jev** binary for Mac/desktop in this product path. Local = Kev/Laya/System One. Do not set `ADJUDICATOR=jev` and point `ADJUDICATOR_URL` at a System One host — kind selects the client.
+Do not set `ADJUDICATOR=jev` and point `ADJUDICATOR_URL` at a System One host — **kind selects the client**.
 
 **Ops tips:** Unset `HTTP_PROXY` / `HTTPS_PROXY` when using localhost adjudicators (Node `fetch` can be hijacked). Kev is often single-request — expect higher latency under parallel paraphrases; the proxy still **fail-opens** on timeout. Keep `CANDIDATE_K` small (default 5; soft-capped to 7 for System One choice).
 
