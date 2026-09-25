@@ -1,7 +1,7 @@
 {
   "name": "@kushalicious/jevcache",
   "version": "0.3.1",
-  "description": "OpenAI-compatible chat proxy: skip completions when TypeSafe Jev (or local System One) says same intent. Fail-open + freshness-aware.",
+  "description": "MorrowCache: OpenAI-compatible chat proxy that skips completions when same intent is admitted. Fail-open + freshness-aware. npm: @kushalicious/jevcache.",
   "type": "module",
   "bin": {
     "jevcache": "./bin/jevcache.js"

@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+- **Product name:** MorrowCache. npm package and CLI remain `@kushalicious/jevcache` / `jevcache`. Marketing site in `site/`.
+
 ## 0.3.1 — 2026-09-25
 - Republish of **0.3.0** (System One backends). npm staged `0.3.0` without promoting to the public registry; `0.3.1` is the installable release.
 

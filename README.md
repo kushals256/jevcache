@@ -1,11 +1,13 @@
-# jevcache
+# MorrowCache
 
 [![npm](https://img.shields.io/npm/v/@kushalicious/jevcache.svg)](https://www.npmjs.com/package/@kushalicious/jevcache)
 [![npm downloads](https://img.shields.io/npm/dm/@kushalicious/jevcache.svg)](https://www.npmjs.com/package/@kushalicious/jevcache)
 [![Docker](https://img.shields.io/badge/ghcr.io-kushals256%2Fjevcache-blue)](https://github.com/kushals256/jevcache/pkgs/container/jevcache)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-**Routers pick a model. jevcache decides whether to call one.**
+**MorrowCache** — routers pick a model. This proxy decides whether to call one.
+
+npm package and CLI stay `@kushalicious/jevcache` / `jevcache` (download history unchanged). Site: [morrowcache.vercel.app](https://morrowcache.vercel.app).
 
 A local OpenAI-compatible **chat response cache**: when your app asks the **same question in different words**, a **same-intent adjudicator** can reuse the cached answer — so you skip another expensive chat call.
 
@@ -60,7 +62,7 @@ Upstream chat still needs a real model API key (or `MOCK_UPSTREAM=1` for a keyle
 - **Precision-first** — prefer miss over a wrong HIT. Judge success by false-HIT rate, not raw hit rate.
 - **Fail-open** — adjudicator errors never invent answers; upstream still runs.
 - **Time in the loop** — same intent ≠ forever valid.
-- **Jev by default, local opt-in** — cloud Jev out of the box; `ADJUDICATOR=kev|laya|…` for on-machine System One.
+- **Jev by default, local opt-in** — cloud Jev out of the box; `ADJUDICATOR=kev|laya|…` for on-machine System One. MorrowCache is the product name; the npm package remains `@kushalicious/jevcache`.
 
 ### Claims we do **not** make (yet)
 

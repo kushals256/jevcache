@@ -161,13 +161,13 @@ export function createApp(cfg: Config, hooks: AppHooks = {}, deps: AppDeps = {})
     const denied = statsHandler(c);
     if (denied) return denied;
     const s = summarize(stats);
-    const html = `<!doctype html><html><head><meta charset="utf-8"/><title>jevcache stats</title>
+    const html = `<!doctype html><html><head><meta charset="utf-8"/><title>MorrowCache stats</title>
 <style>body{font-family:ui-sans-serif,system-ui;max-width:720px;margin:2rem auto;padding:0 1rem;background:#0b0f14;color:#e7eef7}
 h1{font-size:1.4rem} .grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem} .card{background:#151b24;border-radius:12px;padding:1rem}
 .muted{color:#8b9bb0;font-size:.85rem} table{width:100%;border-collapse:collapse} td,th{padding:.35rem 0;border-bottom:1px solid #243041;text-align:left}
 .big{font-size:1.6rem;font-weight:700}</style></head><body>
-<h1>jevcache</h1>
-<p class="muted">Routers pick a model. jevcache decides whether to call one. Estimates only.</p>
+<h1>MorrowCache</h1>
+<p class="muted">Routers pick a model. MorrowCache decides whether to call one. Estimates only.</p>
 <div class="grid">
 <div class="card"><div class="muted">Hit rate</div><div class="big">${(s.hit_rate * 100).toFixed(1)}%</div></div>
 <div class="card"><div class="muted">Est. net saved</div><div class="big">$${(s.net_saved_usd).toFixed(4)}</div></div>

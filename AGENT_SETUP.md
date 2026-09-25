@@ -1,6 +1,6 @@
 # Paste this into Cursor / Claude Code / any coding agent
 
-Copy everything inside the box below into a **new chat**. The agent will install jevcache, wire your app, and prove a MISS → HIT.
+Copy everything inside the box below into a **new chat**. The agent will install `@kushalicious/jevcache` (MorrowCache), wire your app, and prove a MISS → HIT.
 
 ---
 

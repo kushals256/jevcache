@@ -57,7 +57,7 @@ function hasFlag(name: string): boolean {
 }
 
 function printHelp(): void {
-  console.log(`jevcache — skip expensive chat calls when Jev says same intent
+  console.log(`MorrowCache (jevcache) — skip expensive chat calls when same intent is admitted
 
 Usage:
   jevcache              Start the proxy (default)
@@ -195,7 +195,7 @@ async function cmdStatus(): Promise<void> {
   loadDotEnv(path.join(process.cwd(), ".env"));
   const cfg = loadConfig();
   const base = `http://${cfg.host}:${cfg.port}`;
-  console.log("jevcache status");
+  console.log("MorrowCache status");
   try {
     const health = await fetch(`${base}/healthz`, { signal: AbortSignal.timeout(2500) });
     if (!health.ok) {
@@ -308,7 +308,7 @@ async function doctor(): Promise<void> {
   const hasUp = !!cfg.upstreamApiKey || hasOr || cfg.mockUpstream;
   const live = hasFlag("live");
 
-  console.log("jevcache doctor");
+  console.log("MorrowCache doctor");
   console.log(`  adjudicator         ${adjudicatorBanner(cfg)}`);
   console.log(
     `  adj ready           ${ready ? mark(true) : mark(false) + (kind === "jev" ? " (need OPENROUTER_API_KEY)" : "")}`,
@@ -572,7 +572,7 @@ async function startServer(): Promise<void> {
   await new Promise<void>((resolve) => {
     serve({ fetch: app.fetch, port: cfg.port, hostname: cfg.host }, () => {
       console.log("");
-      console.log("  jevcache is running");
+      console.log("  MorrowCache is running");
       console.log(`  Proxy   ${base}/v1`);
       console.log(`  Stats   ${base}/stats`);
       printModeBanner(cfg);
