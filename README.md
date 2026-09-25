@@ -7,9 +7,9 @@
 
 **Routers pick a model. jevcache decides whether to call one.**
 
-A local OpenAI-compatible proxy. When your app asks the **same question in different words**, [TypeSafe Jev](https://typesafe.ai) can reuse the cached answer — so you skip another expensive chat call.
+A local OpenAI-compatible **chat response cache**: when your app asks the **same question in different words**, [TypeSafe Jev](https://typesafe.ai) can reuse the cached answer — so you skip another expensive chat call.
 
-Not cosine similarity. Calibrated **same-intent** admits. If Jev errors, it **fails open** and still calls the model.
+Not cosine similarity. Calibrated **same-intent** admits. If Jev errors, it **fails open** and still calls the model. Same intent is only reused while **freshness** allows — stale “latest” refuses (see `/stats` `freshness_rejects` and `X-Jevcache-Reason`).
 
 <p align="center">
   <img src="docs/demo.gif" alt="Demo: start → MISS → HIT → /stats" width="720" />
@@ -26,6 +26,31 @@ call 2  "Please explain mutexes simply"     →  HIT    ~0.4s   (jev · same ans
 
 Works with one script, one agent, or many — anything that speaks `/v1/chat/completions`.  
 **No native SQLite compile** — uses Node’s built-in `node:sqlite` (Node ≥ 22.5).
+
+---
+
+## Principles
+
+- **Drop-in proxy** — change `baseURL`; no SDK required.
+- **Precision-first** — prefer miss over a wrong HIT. Judge success by false-HIT rate, not raw hit rate.
+- **Fail-open** — adjudicator errors never invent answers; upstream still runs.
+- **Time in the loop** — same intent ≠ forever valid.
+- **Jev by default** — omit `ADJUDICATOR` for cloud Jev; set `ADJUDICATOR=kev|laya` only when a local System One server is running.
+
+### Claims we do **not** make (yet)
+
+- “Proven better than every cosine cache”
+- “Zero false positives”
+- Unmeasured dollar savings as a guarantee
+
+See [`results/eval.json`](./results/eval.json). **Published honest number:** on a live Jev run (n=100), false-positive rate was **0.00** vs Jaccard@0.35 baseline **~0.48** — precision-first, not a forever guarantee. Offline suite now has 103 pairs including negation/entity traps; re-run with `LIVE=1` to refresh.
+
+### When **not** to use
+
+- Personalized / secret questions (“what’s my balance”)
+- Live tool-calling / side-effecting agents (bypassed when `tools` present)
+- Multi-tenant cloud without `X-Jevcache-Tenant` (and understand local SQLite retains answers)
+- Expecting streaming cache HITs (stream is bypass in v0)
 
 ---
 
@@ -124,7 +149,7 @@ See [`examples/openai_sdk.mjs`](./examples/openai_sdk.mjs).
 ```text
 request → policy (bypass stream/tools/…)
        → exact SHA cache?
-       → recent candidates + Jev same_intent?
+       → recent candidates + IntentAdjudicator (default: Jev)?
        → HIT  → return cached answer
        → MISS → call upstream → store → return
 ```
@@ -156,6 +181,8 @@ On a TTY: **green HIT**, **dim MISS**. Ctrl+C prints a session summary.
 
 ### Docker
 
+**One replica / one volume** — SQLite is single-process; do not scale compose replicas against the same DB file.
+
 ```bash
 docker run --rm -p 8080:8080 \
   -e OPENROUTER_API_KEY=$OPENROUTER_API_KEY \
@@ -163,7 +190,7 @@ docker run --rm -p 8080:8080 \
   ghcr.io/kushals256/jevcache:latest
 ```
 
-Or: `docker compose up`.
+Or: `docker compose up` (single service).
 
 ---
 
@@ -175,13 +202,51 @@ For **Jev same-intent** hits: yes. For **exact-only**: any OpenAI-compatible ups
 **Multi-agent only?** No — any repeating/paraphrasing chat client benefits.
 
 **Stale answers / freshness?**  
-Precision-first classes: `live` (bypass), `short` (~15m), `stable` (`TTL_SECONDS`, default 24h), `durable` (same as stable unless `TTL_DURABLE_SECONDS`). Exact + Jev paths enforce hard age; older candidates also get a same-call `reuse_fresh` check (`admit-v2`). Demos stay safe: `reuse_fresh` only if age ≥ 5m (`FRESHNESS_JEV_MIN_AGE_MS`). Rollback: `FRESHNESS_MODE=off`.
+Precision-first classes: `live` (bypass), `short` (~15m), `stable` (`TTL_SECONDS`, default 24h), `durable` (same as stable unless `TTL_DURABLE_SECONDS`). Exact + Jev paths enforce hard age; older candidates also get a same-call `reuse_fresh` check (`admit-v2`). Refuses show on `/stats` (`freshness_rejects`) and often `X-Jevcache-Reason: freshness_stale` on the following MISS. Demos stay safe: `reuse_fresh` only if age ≥ 5m (`FRESHNESS_JEV_MIN_AGE_MS`). Rollback: `FRESHNESS_MODE=off`.
 
 **Native build tools?** No longer required for SQLite (Node built-in). Requires **Node ≥ 22.5**.
 
 **Secrets in this repo?** No. Local `.env` only (gitignored).
 
-**Privacy:** Cache on disk under `DATA_DIR`. Semantic tier sends truncated, redacted text to OpenRouter for Jev. See [`SECURITY.md`](./SECURITY.md).
+**Privacy:** Cache on disk under `DATA_DIR`. Semantic tier sends truncated, redacted text to the adjudicator (OpenRouter Decisions for Jev, or your local System One URL). See [`SECURITY.md`](./SECURITY.md).
+
+---
+
+## Advanced: adjudicator backends
+
+Happy path: **omit** `ADJUDICATOR` — default is **Jev** via OpenRouter Decisions (same as before).
+
+| Value | Status |
+| --- | --- |
+| `jev` (default) | TypeSafe Jev via OpenRouter Decisions (`OPENROUTER_API_KEY` required) |
+| `mock` | Synthetic same-intent (`MOCK_JEV=1` also selects this) |
+| `kev` | Local System One — default `http://127.0.0.1:8008`, model `kev-latest` |
+| `laya` | Local System One — default `http://127.0.0.1:8000`, model `laya-latest` |
+| `laya-mlx` | Like `laya`; optional `LAYA_MLX_URL` / `LAYA_MLX_MODEL` |
+| `systemone` / `local` | Generic System One — **requires** `ADJUDICATOR_URL` + `ADJUDICATOR_MODEL` |
+
+**Local example (Kev):**
+
+```bash
+# Start your Kev / System One server on :8008, then:
+ADJUDICATOR=kev MOCK_UPSTREAM=1 jevcache start
+# OpenRouter key not required for admit; still needed for real upstream chat unless MOCK_UPSTREAM.
+```
+
+Optional env:
+
+- `ADJUDICATOR_URL` — for `jev`: Decisions URL override (`JEV_DECISIONS_URL` alias). For System One kinds: base URL (normalized to `…/v1/systemone`).
+- `ADJUDICATOR_MODEL` — model id for System One kinds (defaults for kev/laya).
+- `ADJUDICATOR_API_KEY` — optional Bearer for System One (empty = no Auth header on localhost).
+- `ADJUDICATOR_TIMEOUT_MS` — admit timeout (alias of `JEV_TIMEOUT_MS`).
+
+**FAQ:** There is **no official local Jev** binary for Mac/desktop in this product path. Local = Kev/Laya/System One. Do not set `ADJUDICATOR=jev` and point `ADJUDICATOR_URL` at a System One host — kind selects the client.
+
+**Ops tips:** Unset `HTTP_PROXY` / `HTTPS_PROXY` when using localhost adjudicators (Node `fetch` can be hijacked). Kev is often single-request — expect higher latency under parallel paraphrases; the proxy still **fail-opens** on timeout. Keep `CANDIDATE_K` small (default 5; soft-capped to 7 for System One choice).
+
+`EMBEDDING_MODE` does **not** produce semantic HITs alone (only the adjudicator may admit).
+
+Maintainers: add a backend under `src/adjudicator/`, register in `factory.ts`, document when `jevcache doctor --live` passes.
 
 ---
 
@@ -199,11 +264,15 @@ npm run eval
 LIVE=1 OPENROUTER_API_KEY=... npm run eval
 ```
 
-See [`results/eval.json`](./results/eval.json).
+See [`results/eval.json`](./results/eval.json). Offline Jaccard baseline always runs in CI. **Published honest number:** prior live Jev run (n=100) false-positive rate **0.00** vs Jaccard@0.35 **~0.48** — not a forever guarantee; refresh with `LIVE=1`.
 
 ## Not in v0
 
-Streaming cache HITs, tool-call caching, hosted multi-tenant SaaS, auto model routing.
+Streaming cache HITs, tool-call caching, hosted multi-tenant SaaS, auto model routing, bundling local model weights.
+
+## Kill / park criteria
+
+After disambiguation + one Jev-channel post: if there is no meaningful engagement (issues, installs interest, or agent paste usage), stay in maintenance mode — no speculative backend farming.
 
 ## Links
 

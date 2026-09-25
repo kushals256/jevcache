@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.0 — 2026-09-25
+- **Local System One backends:** `ADJUDICATOR=kev|laya|laya-mlx|systemone|local` via `/v1/systemone`. Defaults: Kev `:8008`/`kev-latest`, Laya `:8000`/`laya-latest`. Optional `ADJUDICATOR_URL`, `ADJUDICATOR_MODEL`, `ADJUDICATOR_API_KEY`, `ADJUDICATOR_TIMEOUT_MS`.
+- **Admit gate fix:** semantic path uses `adjudicatorReady` — local Kev/Laya work **without** `OPENROUTER_API_KEY`. Unknown kinds no longer silently fall back to Jev.
+- **Doctor / healthz / banners** report adjudicator kind + ready; doctor probes via `createAdjudicator`. HTTP_PROXY tip for localhost.
+- **Schema:** System One noul questions use `criteria: {true,false}`; choice labels use truncated candidate text; soft-cap 7 candidates.
+- Default **Jev Decisions** path unchanged. Metric keys stay `hits_jev` (dashboard label: intent/adj).
+- Includes 0.2.0 surface (factory, freshness reasons, server tests) if that tag was never published separately.
+
+## 0.2.0 — 2026-09-23
+- **Docs:** clearer product story (chat generation gate, fail-open, freshness). Same package name `@kushalicious/jevcache` (no rename).
+- **Pivot-ready adjudicator:** `IntentAdjudicator` factory (`src/adjudicator/`). Default **Jev**; `mock` via `MOCK_JEV` / `ADJUDICATOR=mock`. `JEV_*` env unchanged; optional `ADJUDICATOR` / `ADJUDICATOR_URL`. Laya/Kev **not shipped** — don’t set them yet.
+- **Freshness visibility:** MISS after stale refuse may set `X-Jevcache-Reason: freshness_stale` (or `freshness_reuse_refused`); `/stats` still tracks `freshness_rejects`.
+- **Tests:** server integration (fail-open, shadow, tenant, stream/tools bypass, freshness refuse) + adjudicator factory.
+- Docs: principles, when-not-to-use, claim discipline, single-replica SQLite, kill criteria.
+
 ## 0.1.6 — 2026-09-21
 - **Temporal freshness (admit-v2):** precision-first classes (`live` / `short` / `stable` / `durable`), class TTLs + jitter, hard age filter on exact + Jev candidates, same-call `reuse_fresh` when candidate age ≥ `FRESHNESS_JEV_MIN_AGE_MS` (default 5m — demos stay HIT).
 - Live requests bypass (wins over high-temperature `exact_only`). Rollback: `FRESHNESS_MODE=off` restores legacy volatile regex + single `TTL_SECONDS`.

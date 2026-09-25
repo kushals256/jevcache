@@ -18,14 +18,14 @@ gh search code "same_intent" "chat/completions" jev --limit 20
 If a clone appeared, sharpen README first sentence before posting.
 
 ## Assets
-1. Run `npx @kushalicious/jevcache@latest start --demo` → screenshot `/stats`
-2. One false-HIT story: cosine/Jaccard would merge “explain quicksort” vs “explain mergesort”; Jev should not
-3. `results/eval.json` from `LIVE=1 npm run eval`
+1. Run `npx @kushalicious/jevcache@latest start --demo` → screenshot `/stats` (incl. freshness_rejects if demoing refuse)
+2. One false-HIT story: Jaccard would merge “explain quicksort” vs “explain mergesort”; Jev should not
+3. `results/eval.json` from `npm run eval` (and optionally `LIVE=1`)
 
 ## Tweet draft
 > Routers pick a model. jevcache decides whether to call one.
 >
-> OpenAI-compatible proxy: TypeSafe Jev admits same-intent cache hits (not cosine). Exact tier + fail-open.
+> OpenAI-compatible proxy: TypeSafe Jev admits same-intent cache hits (not cosine). Exact tier + fail-open + freshness.
 >
 > npx @kushalicious/jevcache@latest → change baseURL → watch /stats $ saved
 >
@@ -33,7 +33,10 @@ If a clone appeared, sharpen README first sentence before posting.
 
 Optional soft tags: TypeSafe / OpenRouter.
 
+## Awesome Jev / jevlist one-liner
+> `@kushalicious/jevcache` — local OpenAI proxy that skips chat completions when TypeSafe Jev (or local Kev/Laya System One) says same intent (fail-open, freshness-aware).
+
 ## Do not claim
 - Guaranteed 0 false hits
-- “Better than GPTCache at everything”
 - Unmeasured dollar amounts
+- That local Kev/Laya accuracy matches cloud Jev (operator-tuned)

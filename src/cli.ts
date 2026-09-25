@@ -10,7 +10,14 @@ import { fileURLToPath } from "node:url";
 import { loadConfig } from "./config.js";
 import { createApp } from "./server.js";
 import { loadPriceOverlay } from "./prices.js";
-import { admitSameIntent } from "./jev_admit.js";
+import {
+  createAdjudicator,
+  resolveAdjudicatorKind,
+  adjudicatorReady,
+  adjudicatorBanner,
+  isSystemOneKind,
+} from "./adjudicator/index.js";
+import type { Config } from "./config.js";
 import { forwardModels } from "./upstream.js";
 import { summarize, type Stats } from "./stats.js";
 
@@ -58,7 +65,7 @@ Usage:
   jevcache start --demo After boot, run a live MISS → HIT demo
   jevcache init         Create/update .env + OPENAI_BASE_URL wiring
   jevcache doctor       Check keys / Node
-  jevcache doctor --live  Also probe /healthz, Jev, and upstream
+  jevcache doctor --live  Also probe /healthz, adjudicator, and upstream
   jevcache status       Is the proxy up? hit rate / $ saved
   jevcache open         Open /stats in your browser
   jevcache help         Show this help
@@ -155,22 +162,33 @@ function printWireSnippets(base = "http://127.0.0.1:8080"): void {
   console.log("");
 }
 
-function printModeBanner(cfg: { openrouterApiKey: string; mockJev: boolean }): void {
-  if (cfg.mockJev) {
-    console.log(`  ${c.yellow}Mode${c.reset}    MOCK_JEV — synthetic same-intent (dev only)`);
+function printModeBanner(cfg: Config): void {
+  const kind = resolveAdjudicatorKind(cfg);
+  const ready = adjudicatorReady(cfg);
+  console.log(`  ${c.dim}Adj${c.reset}     ${adjudicatorBanner(cfg)}`);
+  if (kind === "mock" || cfg.mockJev) {
+    console.log(`  ${c.yellow}Mode${c.reset}    MOCK adjudicator — synthetic same-intent (dev only)`);
     return;
   }
-  if (cfg.openrouterApiKey) {
-    console.log(`  ${c.green}Mode${c.reset}    Jev same-intent + exact cache (OPENROUTER_API_KEY set)`);
-  } else {
-    console.log("");
-    console.log(`  ${c.yellow}╔══════════════════════════════════════════════════════════╗${c.reset}`);
-    console.log(`  ${c.yellow}║  EXACT-ONLY MODE — no OPENROUTER_API_KEY                 ║${c.reset}`);
-    console.log(`  ${c.yellow}║  Paraphrases will MISS. Exact same prompt can HIT.       ║${c.reset}`);
-    console.log(`  ${c.yellow}║  Set OPENROUTER_API_KEY for TypeSafe Jev same-intent.    ║${c.reset}`);
-    console.log(`  ${c.yellow}╚══════════════════════════════════════════════════════════╝${c.reset}`);
-    console.log("");
+  if (ready && isSystemOneKind(kind)) {
+    console.log(`  ${c.green}Mode${c.reset}    ${kind} System One + exact cache`);
+    return;
   }
+  if (ready && kind === "jev") {
+    console.log(`  ${c.green}Mode${c.reset}    Jev same-intent + exact cache`);
+    return;
+  }
+  console.log("");
+  console.log(`  ${c.yellow}╔══════════════════════════════════════════════════════════╗${c.reset}`);
+  console.log(`  ${c.yellow}║  EXACT-ONLY MODE — adjudicator not ready                 ║${c.reset}`);
+  console.log(`  ${c.yellow}║  Paraphrases will MISS. Exact same prompt can HIT.       ║${c.reset}`);
+  if (kind === "jev" || kind === "unknown") {
+    console.log(`  ${c.yellow}║  Set OPENROUTER_API_KEY for Jev, or ADJUDICATOR=kev/laya ║${c.reset}`);
+  } else {
+    console.log(`  ${c.yellow}║  Set ADJUDICATOR_URL + ADJUDICATOR_MODEL for ${kind.padEnd(12)}║${c.reset}`);
+  }
+  console.log(`  ${c.yellow}╚══════════════════════════════════════════════════════════╝${c.reset}`);
+  console.log("");
 }
 
 async function cmdStatus(): Promise<void> {
@@ -216,7 +234,7 @@ async function cmdStatus(): Promise<void> {
     };
     const hits = (s.hits_exact || 0) + (s.hits_jev || 0);
     console.log(`  requests  ${s.requests ?? 0}`);
-    console.log(`  hits      ${hits}  (exact ${s.hits_exact ?? 0} · jev ${s.hits_jev ?? 0})`);
+    console.log(`  hits      ${hits}  (exact ${s.hits_exact ?? 0} · intent ${s.hits_jev ?? 0})`);
     console.log(`  misses    ${s.misses ?? 0}`);
     console.log(`  hit rate  ${((s.hit_rate ?? 0) * 100).toFixed(1)}%`);
     console.log(`  saved     ~${formatUsd(s.net_saved_usd ?? 0)} (est. net)`);
@@ -228,10 +246,16 @@ async function cmdStatus(): Promise<void> {
 }
 
 async function ensureKeysInteractive(): Promise<void> {
+  loadDotEnv(path.join(process.cwd(), ".env"));
+  const cfgPeek = loadConfig();
+  // Local System One ready → no OpenRouter key required for semantic admit
+  if (adjudicatorReady(cfgPeek) && isSystemOneKind(resolveAdjudicatorKind(cfgPeek))) {
+    return;
+  }
   if (process.env.OPENROUTER_API_KEY?.trim() || process.env.MOCK_JEV === "1") return;
   if (!process.stdin.isTTY) {
     console.warn(
-      "[jevcache] No OPENROUTER_API_KEY — exact-cache only. Set it for Jev same-intent hits.",
+      "[jevcache] No OPENROUTER_API_KEY — exact-cache only (or set ADJUDICATOR=kev|laya).",
     );
     return;
   }
@@ -239,11 +263,12 @@ async function ensureKeysInteractive(): Promise<void> {
   try {
     console.log("No OPENROUTER_API_KEY found.");
     console.log("Get one at https://openrouter.ai/keys (used for Jev + optional upstream chat).");
+    console.log("Or set ADJUDICATOR=kev|laya for a local System One backend.");
     const key = (await rl.question("Paste OpenRouter API key (or Enter to skip): ")).trim();
     if (!key) {
       console.warn("");
-      console.warn(`${c.yellow}[jevcache] Skipping OpenRouter key → EXACT-ONLY MODE${c.reset}`);
-      console.warn(`${c.yellow}[jevcache] Paraphrases will MISS until you set OPENROUTER_API_KEY for Jev.${c.reset}`);
+      console.warn(`${c.yellow}[jevcache] Skipping OpenRouter key → EXACT-ONLY MODE (unless local adj)${c.reset}`);
+      console.warn(`${c.yellow}[jevcache] Paraphrases will MISS until Jev key or ADJUDICATOR=kev|laya.${c.reset}`);
       console.warn("");
       return;
     }
@@ -277,20 +302,42 @@ function mark(ok: boolean): string {
 async function doctor(): Promise<void> {
   loadDotEnv(path.join(process.cwd(), ".env"));
   const cfg = loadConfig();
+  const kind = resolveAdjudicatorKind(cfg);
+  const ready = adjudicatorReady(cfg);
   const hasOr = !!cfg.openrouterApiKey || cfg.mockJev;
   const hasUp = !!cfg.upstreamApiKey || hasOr || cfg.mockUpstream;
   const live = hasFlag("live");
 
   console.log("jevcache doctor");
-  console.log(`  OPENROUTER_API_KEY  ${hasOr ? mark(true) : mark(false) + " (needed for Jev)"}`);
+  console.log(`  adjudicator         ${adjudicatorBanner(cfg)}`);
+  console.log(
+    `  adj ready           ${ready ? mark(true) : mark(false) + (kind === "jev" ? " (need OPENROUTER_API_KEY)" : "")}`,
+  );
+  if (kind === "jev") {
+    console.log(`  OPENROUTER_API_KEY  ${hasOr ? mark(true) : mark(false) + " (needed for Jev)"}`);
+  } else if (isSystemOneKind(kind)) {
+    console.log(`  OPENROUTER_API_KEY  ${hasOr ? mark(true) : c.dim + "optional for adj" + c.reset}`);
+  }
   console.log(`  UPSTREAM_API_KEY    ${hasUp ? mark(true) : mark(false) + " (needed for chat)"}`);
   console.log(`  cwd                 ${process.cwd()}`);
   console.log(`  Node                ${process.version}`);
 
+  const proxyEnv = process.env.HTTP_PROXY || process.env.HTTPS_PROXY || process.env.ALL_PROXY;
+  if (proxyEnv && isSystemOneKind(kind)) {
+    console.log(
+      `  ${c.yellow}tip${c.reset}                 HTTP(S)_PROXY is set — may hijack fetch to 127.0.0.1; unset for local adj`,
+    );
+  }
+  if (kind === "jev" && /systemone/i.test(cfg.adjudicatorUrl || "")) {
+    console.log(
+      `  ${c.yellow}warn${c.reset}                ADJUDICATOR_URL looks like System One but kind=jev (Decisions client)`,
+    );
+  }
+
   if (!live) {
-    if (!hasOr) console.log("\nRun: jevcache init   then edit .env");
+    if (!ready && kind === "jev") console.log("\nRun: jevcache init   then edit .env");
     else printWireSnippets(`http://${cfg.host}:${cfg.port}`);
-    console.log("  Tip: jevcache doctor --live  → probe /healthz, Jev, upstream");
+    console.log("  Tip: jevcache doctor --live  → probe /healthz, adjudicator, upstream");
     console.log("");
     return;
   }
@@ -303,23 +350,34 @@ async function doctor(): Promise<void> {
   try {
     const res = await fetch(`${base}/healthz`, { signal: AbortSignal.timeout(3000) });
     const ok = res.ok;
-    console.log(`  /healthz            ${mark(ok)}  ${base}/healthz${ok ? "" : ` (${res.status})`}`);
+    let extra = "";
+    if (ok) {
+      try {
+        const body = (await res.json()) as {
+          adjudicator?: { name?: string; kind?: string; ready?: boolean };
+        };
+        if (body.adjudicator) {
+          extra = `  kind=${body.adjudicator.kind} ready=${body.adjudicator.ready}`;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    console.log(`  /healthz            ${mark(ok)}  ${base}/healthz${ok ? extra : ` (${res.status})`}`);
     if (!ok) console.log(`  ${c.dim}→ start the proxy: jevcache start${c.reset}`);
   } catch {
     console.log(`  /healthz            ${mark(false)}  not reachable at ${base}`);
     console.log(`  ${c.dim}→ start the proxy: jevcache start${c.reset}`);
   }
 
-  // Jev probe
-  if (cfg.mockJev) {
-    console.log(`  Jev                 ${mark(true)}  MOCK_JEV=1`);
-  } else if (!cfg.openrouterApiKey) {
-    console.log(`  Jev                 ${mark(false)}  no OPENROUTER_API_KEY`);
+  // Adjudicator probe via factory
+  const adjLabel = isSystemOneKind(kind) ? kind : kind === "mock" ? "mock" : "Jev";
+  if (!ready) {
+    console.log(`  ${adjLabel.padEnd(19)} ${mark(false)}  adjudicator not ready`);
   } else {
     try {
-      const admit = await admitSameIntent({
-        apiKey: cfg.openrouterApiKey,
-        model: cfg.jevModel,
+      const adj = createAdjudicator(cfg);
+      const admit = await adj.admit({
         newText: "Explain mutexes simply please",
         candidates: [
           { id: "a", text: "Please explain mutexes simply" },
@@ -331,13 +389,15 @@ async function doctor(): Promise<void> {
       });
       if (admit.ok) {
         console.log(
-          `  Jev                 ${mark(true)}  noul=${admit.noul.toFixed(2)} best=${admit.best}`,
+          `  ${adjLabel.padEnd(19)} ${mark(true)}  noul=${admit.noul.toFixed(2)} best=${admit.best}`,
         );
       } else {
-        console.log(`  Jev                 ${mark(false)}  ${admit.error.slice(0, 80)}`);
+        console.log(`  ${adjLabel.padEnd(19)} ${mark(false)}  ${admit.error.slice(0, 80)}`);
       }
     } catch (e) {
-      console.log(`  Jev                 ${mark(false)}  ${e instanceof Error ? e.message : String(e)}`);
+      console.log(
+        `  ${adjLabel.padEnd(19)} ${mark(false)}  ${e instanceof Error ? e.message : String(e)}`,
+      );
     }
   }
 

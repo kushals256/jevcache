@@ -1,25 +1,16 @@
 {
-  "n": 100,
+  "n": 103,
   "cosine_jaccard_threshold_0_35": {
     "tp": 12,
-    "fp": 24,
-    "tn": 26,
+    "fp": 26,
+    "tn": 27,
     "fn": 38,
-    "precision": 0.3333333333333333,
+    "precision": 0.3157894736842105,
     "recall": 0.24,
-    "f1": 0.27906976744186046,
-    "false_positive_rate": 0.48
+    "f1": 0.2727272727272727,
+    "false_positive_rate": 0.49056603773584906
   },
-  "jev_live": {
-    "tp": 19,
-    "fp": 0,
-    "tn": 50,
-    "fn": 31,
-    "precision": 1,
-    "recall": 0.38,
-    "f1": 0.5507246376811594,
-    "false_positive_rate": 0
-  },
-  "jev_cost_usd": 0.0017411519999999997,
-  "note": "Live Jev results"
+  "jev_live": null,
+  "jev_cost_usd": 0,
+  "note": "Set LIVE=1 OPENROUTER_API_KEY=... for Jev metrics; cosine baseline always runs"
 }

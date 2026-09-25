@@ -15,15 +15,34 @@ export type Config = {
   ttlSeconds: number;
   maxEntries: number;
   shadow: boolean;
-  embeddingMode: "off" | "openai";
   adminToken: string;
   rateLimitRpm: number;
   corsOrigin: string;
   upstreamTimeoutMs: number;
+  /** Admit timeout (JEV_TIMEOUT_MS or ADJUDICATOR_TIMEOUT_MS). */
   jevTimeoutMs: number;
   mockUpstream: boolean;
   mockJev: boolean;
+  /**
+   * Intent adjudicator: jev (default) | mock | laya | laya-mlx | kev | systemone | local.
+   * Aliases: ADJUDICATOR, ADJUDICATOR_BACKEND.
+   */
+  adjudicator: string;
+  /**
+   * For kind=jev: optional Decisions URL override (ADJUDICATOR_URL / JEV_DECISIONS_URL).
+   * For System One kinds: base URL (normalized to …/v1/systemone).
+   */
+  adjudicatorUrl: string;
+  /** Model id for System One kinds (ADJUDICATOR_MODEL). Jev still uses JEV_MODEL. */
+  adjudicatorModel: string;
+  /** Optional Bearer for System One (ADJUDICATOR_API_KEY). Empty = no Auth header. */
+  adjudicatorApiKey: string;
   freshnessMode: "on" | "off";
+  /**
+   * Reserved — must NEVER alone produce a semantic HIT.
+   * Embeddings may propose candidates later; only IntentAdjudicator admits.
+   */
+  embeddingMode: "off" | "openai";
   ttlLiveSeconds: number;
   ttlShortSeconds: number;
   ttlDurableSeconds: number;
@@ -65,15 +84,22 @@ export function loadConfig(): Config {
     ttlSeconds,
     maxEntries: num("MAX_ENTRIES", 10000),
     shadow: env("JEVCACHE_SHADOW", "0") === "1",
-    embeddingMode: env("EMBEDDING_MODE", "off") === "openai" ? "openai" : "off",
     adminToken: env("JEVCACHE_ADMIN_TOKEN"),
     rateLimitRpm: num("RATE_LIMIT_RPM", host === "127.0.0.1" || host === "localhost" ? 0 : 60),
     corsOrigin: env("CORS_ORIGIN"),
     upstreamTimeoutMs: num("UPSTREAM_TIMEOUT_MS", 120_000),
-    jevTimeoutMs: num("JEV_TIMEOUT_MS", 30_000),
+    jevTimeoutMs: num(
+      "ADJUDICATOR_TIMEOUT_MS",
+      num("JEV_TIMEOUT_MS", 30_000),
+    ),
     mockUpstream: env("MOCK_UPSTREAM", "0") === "1",
     mockJev: env("MOCK_JEV", "0") === "1",
+    adjudicator: env("ADJUDICATOR", env("ADJUDICATOR_BACKEND", "jev")).toLowerCase() || "jev",
+    adjudicatorUrl: env("ADJUDICATOR_URL", env("JEV_DECISIONS_URL")),
+    adjudicatorModel: env("ADJUDICATOR_MODEL"),
+    adjudicatorApiKey: env("ADJUDICATOR_API_KEY"),
     freshnessMode: mode === "off" ? "off" : "on",
+    embeddingMode: env("EMBEDDING_MODE", "off") === "openai" ? "openai" : "off",
     ttlLiveSeconds: num("TTL_LIVE_SECONDS", 0),
     ttlShortSeconds: num("TTL_SHORT_SECONDS", 900),
     ttlDurableSeconds,

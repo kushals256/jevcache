@@ -14,7 +14,8 @@ import {
 import { decidePolicy } from "./policy.js";
 import { CacheStore } from "./store/sqlite.js";
 import { SingleFlight } from "./singleflight.js";
-import { admitSameIntent } from "./jev_admit.js";
+import { createAdjudicator, adjudicatorReady, resolveAdjudicatorKind } from "./adjudicator/index.js";
+import type { IntentAdjudicator } from "./adjudicator/types.js";
 import {
   recentCandidates,
   entryIdForChoice,
@@ -58,6 +59,11 @@ export type AppHooks = {
   onMiss?: (event: CacheMissEvent) => void;
 };
 
+/** Optional deps for tests / custom backends without forking HIT logic. */
+export type AppDeps = {
+  adjudicator?: IntentAdjudicator;
+};
+
 export type App = {
   app: Hono;
   store: CacheStore;
@@ -77,11 +83,15 @@ function requireAdmin(c: { req: { header: (n: string) => string | undefined } },
   return c.req.header("X-Jevcache-Admin") === cfg.adminToken;
 }
 
-export function createApp(cfg: Config, hooks: AppHooks = {}): App {
+export function createApp(cfg: Config, hooks: AppHooks = {}, deps: AppDeps = {}): App {
   const store = new CacheStore(cfg.dataDir);
   const stats = createStats();
   const flight = new SingleFlight();
   const limiter = new RateLimiter(cfg.rateLimitRpm);
+  const adjInjected = !!deps.adjudicator;
+  const adjudicator = deps.adjudicator ?? createAdjudicator(cfg);
+  const adjKind = resolveAdjudicatorKind(cfg);
+  const adjReady = adjInjected || adjudicatorReady(cfg);
   const app = new Hono();
 
   const emitHit = (
@@ -117,7 +127,16 @@ export function createApp(cfg: Config, hooks: AppHooks = {}): App {
     });
   }
 
-  app.get("/healthz", (c) => c.json({ ok: true }));
+  app.get("/healthz", (c) =>
+    c.json({
+      ok: true,
+      adjudicator: {
+        name: adjudicator.name,
+        kind: adjKind,
+        ready: adjReady,
+      },
+    }),
+  );
   app.get("/readyz", (c) => {
     try {
       store.count();
@@ -152,18 +171,18 @@ h1{font-size:1.4rem} .grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem
 <div class="grid">
 <div class="card"><div class="muted">Hit rate</div><div class="big">${(s.hit_rate * 100).toFixed(1)}%</div></div>
 <div class="card"><div class="muted">Est. net saved</div><div class="big">$${(s.net_saved_usd).toFixed(4)}</div></div>
-<div class="card"><div class="muted">Hits exact / jev</div><div class="big">${s.hits_exact} / ${s.hits_jev}</div></div>
+<div class="card"><div class="muted">Hits exact / intent</div><div class="big">${s.hits_exact} / ${s.hits_jev}</div></div>
 <div class="card"><div class="muted">Miss / bypass</div><div class="big">${s.misses} / ${s.bypasses}</div></div>
 <div class="card"><div class="muted">Freshness rejects</div><div class="big">${s.freshness_rejects}</div></div>
 <div class="card"><div class="muted">Upstream $</div><div>$${s.upstream_spend_usd.toFixed(4)}</div></div>
-<div class="card"><div class="muted">Jev $</div><div>$${s.jev_spend_usd.toFixed(4)}</div></div>
+<div class="card"><div class="muted">Adj $</div><div>$${s.jev_spend_usd.toFixed(4)}</div></div>
 </div>
-${s.cost_inversion_warning ? "<p class=muted>Warning: Jev spend high vs savings — raise INTENT_THRESHOLD or disable semantic.</p>" : ""}
+${s.cost_inversion_warning ? "<p class=muted>Warning: adjudicator spend high vs savings — raise INTENT_THRESHOLD or disable semantic.</p>" : ""}
 <h2>Recent hits</h2>
 <table><tr><th>Tier</th><th>Intent</th><th>Preview</th></tr>
 ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? "—"}</td><td>${escapeHtml(h.preview)}</td></tr>`).join("")}
 </table>
-<p class="muted">uptime ${(Date.now() - s.started_at) / 1000 | 0}s · schema admit-v2 · freshness ${cfg.freshnessMode} · single-node SQLite</p>
+<p class="muted">uptime ${(Date.now() - s.started_at) / 1000 | 0}s · schema admit-v2 · adjudicator ${escapeHtml(adjudicator.name)} (${adjKind}${adjReady ? "" : ", not ready"}) · freshness ${cfg.freshnessMode} · single-node SQLite</p>
 </body></html>`;
     return c.html(html);
   });
@@ -268,6 +287,7 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
     const key = exactKey(ns, body);
 
     const exact = store.getByExactKey(key);
+    let missReason: string | undefined;
     if (exact && entryFreshForRequest(exact.created_at, reqClass, ttls, cfg, headerMaxAge)) {
       stats.hits_exact += 1;
       stats.saved_usd += exact.est_cost_usd;
@@ -278,6 +298,7 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
     }
     if (exact && cfg.freshnessMode === "on") {
       stats.freshness_rejects += 1;
+      missReason = "freshness_stale";
       if (cfg.shadow) {
         console.error(
           `[jevcache] freshness_reject exact age_ms=${Date.now() - exact.created_at} class=${reqClass}`,
@@ -292,9 +313,10 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
       }
       if (again && cfg.freshnessMode === "on") {
         stats.freshness_rejects += 1;
+        missReason = missReason || "freshness_stale";
       }
 
-      if (policy.mode === "full" && (cfg.openrouterApiKey || cfg.mockJev)) {
+      if (policy.mode === "full" && adjReady) {
         const cands: RankedCandidate[] = recentCandidates(store, ns, cfg.candidateK, key, {
           maxAgeMs: cfg.freshnessMode === "on" ? maxAgeMs : undefined,
         });
@@ -304,9 +326,7 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
             cfg.freshnessMode === "on" &&
             reqClass !== "live" &&
             oldestAge >= cfg.freshnessJevMinAgeMs;
-          const admit = await admitSameIntent({
-            apiKey: cfg.openrouterApiKey || "mock",
-            model: cfg.jevModel,
+          const admit = await adjudicator.admit({
             newText: userText,
             candidates: cands.map(({ id, text }) => ({ id, text })),
             threshold: cfg.intentThreshold,
@@ -325,14 +345,24 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
             }
             if (entry && cfg.freshnessMode === "on") {
               stats.freshness_rejects += 1;
+              missReason = "freshness_stale";
             }
-          } else if (admit.ok && !admit.admit && askReuseFresh && cfg.shadow) {
-            console.error(
-              `[jevcache] freshness_shadow reuse_fresh noul=${admit.noul} reuse=${admit.reuseFresh}`,
-            );
+          } else if (admit.ok && !admit.admit && askReuseFresh) {
+            if (
+              admit.noul >= cfg.intentThreshold &&
+              (admit.reuseFresh ?? 0) < cfg.intentThreshold
+            ) {
+              stats.freshness_rejects += 1;
+              missReason = "freshness_reuse_refused";
+            }
+            if (cfg.shadow) {
+              console.error(
+                `[jevcache] freshness_shadow reuse_fresh noul=${admit.noul} reuse=${admit.reuseFresh}`,
+              );
+            }
           }
         }
-      } else if (policy.mode === "full" && !cfg.openrouterApiKey) {
+      } else if (policy.mode === "full" && !adjReady) {
         // semantic disabled — exact only path continues to upstream
       }
 
@@ -418,7 +448,10 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
       spentUsd: value.est,
       preview: preview(value.entry.user_text),
     });
-    applyHeaders(c, hitHeaders("MISS", "none", 0, value.entry.id, undefined, reqClass));
+    applyHeaders(
+      c,
+      hitHeaders("MISS", "none", 0, value.entry.id, undefined, reqClass, missReason),
+    );
     return c.json(parsed);
   });
 
@@ -525,6 +558,7 @@ function hitHeaders(
   entryId: string,
   intent?: number,
   freshness?: FreshnessClass,
+  reason?: string,
 ): Record<string, string> {
   const h: Record<string, string> = {
     "X-Jevcache": cache,
@@ -534,6 +568,7 @@ function hitHeaders(
   };
   if (intent != null) h["X-Jevcache-Intent"] = intent.toFixed(4);
   if (freshness) h["X-Jevcache-Freshness"] = freshness;
+  if (reason) h["X-Jevcache-Reason"] = reason;
   return h;
 }
 

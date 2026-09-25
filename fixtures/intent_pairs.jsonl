@@ -98,3 +98,6 @@
 {"id": "diff-047", "label": "different", "a": "Book a flight to Tokyo", "b": "Book a hotel in Tokyo #47"}
 {"id": "diff-048", "label": "different", "a": "Explain quicksort", "b": "Explain mergesort #48"}
 {"id": "diff-049", "label": "different", "a": "Price of bitcoin right now", "b": "What is bitcoin #49"}
+{"id":"diff-neg-001","label":"different","a":"Explain quicksort in plain English","b":"Do not explain quicksort; explain mergesort instead"}
+{"id":"diff-ent-001","label":"different","a":"What is the capital of France?","b":"What is the capital of Germany?"}
+{"id":"diff-neg-002","label":"different","a":"Enable dark mode please","b":"Disable dark mode please"}

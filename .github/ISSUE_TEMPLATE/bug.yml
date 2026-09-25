@@ -6,6 +6,19 @@ body:
     attributes:
       value: |
         Thanks for reporting. Please include enough to reproduce — especially install method and whether `/healthz` works.
+
+        **Wrong HIT / stale reuse?** Include `X-Jevcache-*` headers and whether `JEVCACHE_SHADOW=1` was on.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of issue?
+      options:
+        - Wrong HIT / false same-intent
+        - Stale answer reused (freshness)
+        - Install / start / doctor
+        - Crash / other
+    validations:
+      required: true
   - type: textarea
     id: what
     attributes:
@@ -37,7 +50,7 @@ body:
     id: version
     attributes:
       label: Version / commit
-      placeholder: 0.1.4 or git SHA
+      placeholder: 0.3.0 or git SHA
   - type: input
     id: node
     attributes:

@@ -1,7 +1,7 @@
 {
   "name": "@kushalicious/jevcache",
-  "version": "0.1.6",
-  "description": "One command: OpenAI-compatible proxy that skips chat calls when TypeSafe Jev says same intent.",
+  "version": "0.3.0",
+  "description": "OpenAI-compatible chat proxy: skip completions when TypeSafe Jev (or local System One) says same intent. Fail-open + freshness-aware.",
   "type": "module",
   "bin": {
     "jevcache": "./bin/jevcache.js"
@@ -19,6 +19,7 @@
     "prepare": "node -e \"const fs=require('fs');if(!fs.existsSync('tsconfig.json')||!fs.existsSync('src'))process.exit(0);require('child_process').execSync('npm run build',{stdio:'inherit'})\"",
     "start": "node dist/cli.js",
     "test": "vitest run",
+    "validate:systemone": "npm run build && node --experimental-sqlite scripts/validate_systemone.mjs",
     "eval": "tsx scripts/eval.ts",
     "demo": "tsx scripts/load_demo.ts",
     "prepublishOnly": "npm test && npm run build"
