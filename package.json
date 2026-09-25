@@ -1,6 +1,6 @@
 {
   "name": "@kushalicious/jevcache",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "OpenAI-compatible chat proxy: skip completions when TypeSafe Jev (or local System One) says same intent. Fail-open + freshness-aware.",
   "type": "module",
   "bin": {

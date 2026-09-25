@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.3.1 — 2026-09-25
+- Republish of **0.3.0** (System One backends). npm staged `0.3.0` without promoting to the public registry; `0.3.1` is the installable release.
+
 ## 0.3.0 — 2026-09-25
 - **Local System One backends:** `ADJUDICATOR=kev|laya|laya-mlx|systemone|local` via `/v1/systemone`. Defaults: Kev `:8008`/`kev-latest`, Laya `:8000`/`laya-latest`. Optional `ADJUDICATOR_URL`, `ADJUDICATOR_MODEL`, `ADJUDICATOR_API_KEY`, `ADJUDICATOR_TIMEOUT_MS`.
 - **Admit gate fix:** semantic path uses `adjudicatorReady` — local Kev/Laya work **without** `OPENROUTER_API_KEY`. Unknown kinds no longer silently fall back to Jev.
