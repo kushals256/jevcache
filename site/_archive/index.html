@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MorrowCache — skip the chat call when the question is the same</title>
+  <meta name="description" content="MorrowCache is an OpenAI-compatible proxy that reuses a cached chat answer when the question is the same intent. Cloud Jev or local Kev and Laya. Fail-open." />
+  <meta name="theme-color" content="#07080b" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <meta property="og:title" content="MorrowCache — skip the chat call when the question is the same" />
+  <meta property="og:description" content="Same question, different words. Reuse the cached answer. If the adjudicator fails, the real model still runs." />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="MorrowCache" />
+  <meta name="twitter:description" content="Skip the model when the question is the same." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,560&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/site.css" />
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+  <header class="nav">
+    <a class="wordmark" href="#top">MorrowCache</a>
+    <nav class="nav-links" id="nav-links">
+      <a href="#problem">Why</a>
+      <a href="#how">How</a>
+      <a href="#start">Install</a>
+      <a href="#docs">Docs</a>
+      <a href="https://github.com/kushals256/jevcache" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+    <a class="nav-cta" href="#start">Install</a>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+  </header>
+
+  <main id="top">
+    <section class="hero settle">
+      <p class="eyebrow">OpenAI-compatible proxy</p>
+      <h1>Skip the model when the question is <em>the same</em>.</h1>
+      <p class="lede">Not by guessing. MorrowCache sits on your chat baseURL, reuses the answer for exact repeats and same-intent paraphrases, and still calls the model when it should.</p>
+      <div class="cta-row">
+        <button class="btn" type="button" data-copy="npx @kushalicious/jevcache@latest">Copy install</button>
+        <a class="btn-ghost" href="https://github.com/kushals256/jevcache" target="_blank" rel="noopener">View on GitHub</a>
+      </div>
+      <p class="cta-note">MIT · Node ≥ 22.5 · no account required</p>
+    </section>
+
+    <dl class="metrics">
+      <div class="metric">
+        <strong data-stars>10</strong>
+        <span>GitHub stars</span>
+      </div>
+      <div class="metric">
+        <strong data-installs>367</strong>
+        <span>npm installs / month</span>
+      </div>
+      <div class="metric">
+        <strong>55</strong>
+        <span>tests passing</span>
+      </div>
+      <div class="metric">
+        <strong>6.7×</strong>
+        <span>faster on a recorded hit</span>
+      </div>
+    </dl>
+
+    <div class="demo">
+      <div class="stage" aria-label="A miss followed by a same-intent hit">
+        <div class="stage-bar"><span class="dot"></span> one recorded run</div>
+        <pre class="stage-body"><code><span class="q">"Explain mutexes simply please"</span>
+<span class="miss">MISS   2817ms   called the model</span>
+
+<span class="q hit-line">"Please explain mutexes simply"</span>
+<span class="hit-line">HIT    423ms    same intent · 0.94</span></code></pre>
+      </div>
+    </div>
+
+    <section class="section" id="problem">
+      <p class="kicker">Sound familiar?</p>
+      <h2>Three ways you pay for the same answer twice</h2>
+      <div class="stories">
+        <article class="story">
+          <h3>The paraphrase still hits the model</h3>
+          <p>Someone asks the same thing with different words. An exact cache misses. You pay for the completion again.</p>
+          <span class="receipt">receipt: "explain mutexes" · "please explain mutexes" · two bills</span>
+        </article>
+        <article class="story">
+          <h3>The agent retries until it looks done</h3>
+          <p>A coding agent rephrases and asks again. Each try is a full chat call. The answer was already there.</p>
+          <span class="receipt">receipt: agent → rephrase → model → rephrase → model</span>
+        </article>
+        <article class="story">
+          <h3>Or a cache keeps a “latest” forever</h3>
+          <p>Word overlap treats similar text as the same question. Freshness still matters. A wrong hit is worse than a miss.</p>
+          <span class="receipt">receipt: "what's the latest" · stored yesterday · should refuse</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="how">
+      <p class="kicker">What it does</p>
+      <h2>It decides whether the model should run at all</h2>
+      <div class="trio">
+        <article>
+          <h3>Exact first</h3>
+          <p>Identical prompts never reach the model twice.</p>
+        </article>
+        <article>
+          <h3>Same intent second</h3>
+          <p>A paraphrase can reuse the stored answer when the adjudicator agrees.</p>
+        </article>
+        <article>
+          <h3>Freshness can refuse</h3>
+          <p>If the question needs a new answer, the model still runs. Fail-open if the adjudicator fails.</p>
+        </article>
+      </div>
+      <p class="note after">Default adjudicator is cloud Jev. Local opt-in: <code>ADJUDICATOR=kev</code> or <code>laya</code>. Streaming and tool calls bypass.</p>
+    </section>
+
+    <section class="section" id="start">
+      <p class="kicker">Start here</p>
+      <h2>One command. One baseURL.</h2>
+      <div class="start-box">
+        <code>npx @kushalicious/jevcache@latest</code>
+        <div class="start-actions">
+          <button class="btn" type="button" data-copy="npx @kushalicious/jevcache@latest">Copy</button>
+          <button class="btn-ghost" type="button" data-copy="npx @kushalicious/jevcache init && npx @kushalicious/jevcache start">Copy init + start</button>
+        </div>
+        <pre class="snippet"><code>const client = new OpenAI({
+  baseURL: "http://127.0.0.1:8080/v1",
+  apiKey: process.env.OPENAI_API_KEY,
+});</code></pre>
+        <p class="note">Then <code>doctor</code>, <code>status</code>, or open <code>/stats</code>. Package name stays <code>@kushalicious/jevcache</code>.</p>
+      </div>
+
+      <details class="prompt-wrap">
+        <summary>Paste this into Cursor or any coding agent</summary>
+        <p class="note">Same text as <a href="https://github.com/kushals256/jevcache/blob/main/AGENT_SETUP.md">AGENT_SETUP.md</a>.</p>
+        <pre class="snippet prompt" id="agent-prompt">You are setting up jevcache for me in this project.
+
+Goal: run an OpenAI-compatible local proxy that caches chat completions when TypeSafe Jev judges "same intent", so repeated/paraphrased LLM calls cost less while I build.
+
+Repo: https://github.com/kushals256/jevcache
+npm: npx @kushalicious/jevcache@latest
+
+Do ALL of the following without asking me to run terminal commands myself (you run them):
+
+1. Check Node.js >= 22.5. If missing, tell me how to install it in one step for my OS.
+2. Prefer the easiest install that works:
+   a) Try: npx --yes @kushalicious/jevcache@latest doctor
+      (fallback: npx --yes github:kushals256/jevcache doctor)
+   b) If that fails, use Docker with ghcr.io/kushals256/jevcache:latest on port 8080
+   c) Or clone into ../jevcache, npm install, npm run build.
+3. Ask me ONCE for an OpenRouter API key (https://openrouter.ai/keys) if OPENROUTER_API_KEY is not set. Save to .env (never commit; ensure .gitignore has .env).
+4. Run: npx @kushalicious/jevcache init  (writes OPENAI_BASE_URL into .env)
+5. Start jevcache in the background on http://127.0.0.1:8080 and verify GET /healthz.
+6. Wire THIS app so OpenAI-compatible clients use baseURL "http://127.0.0.1:8080/v1".
+7. Add SETUP_JEVCACHE.md with start command, baseURL, and /stats link.
+8. Optionally add .cursor/rules/jevcache.mdc so future agents keep that baseURL.
+9. Prove it: paraphrased prompts → expect MISS then HIT. Show X-Jevcache headers or /stats.
+
+Do not commit secrets. If install fails, try the next method (npx → docker → clone).
+
+When done, tell me: start command, baseURL, key location, whether MISS → HIT passed, stats URL.</pre>
+        <button class="btn" type="button" data-copy-target="#agent-prompt">Copy agent prompt</button>
+      </details>
+    </section>
+
+    <section class="section" id="evidence">
+      <p class="kicker">Evidence</p>
+      <h2>Measured. Honest about the limits.</h2>
+      <div class="numbers">
+        <div>
+          <span class="k miss-k">MISS · recorded run</span>
+          <p>2817 ms to call the model and store the answer.</p>
+        </div>
+        <div>
+          <span class="k hit-k">HIT · same run</span>
+          <p>423 ms for the paraphrase. Intent 0.94. About 6.7× faster.</p>
+        </div>
+      </div>
+      <ul class="limits">
+        <li>Word-overlap baseline on 103 pairs: false-positive rate 0.49. That is why we use an adjudicator, not shared tokens.</li>
+        <li>55 tests passed. Live Jev suite not refreshed for this page.</li>
+        <li>A wrong hit is possible. Prefer a miss. Streaming and tools bypass.</li>
+      </ul>
+    </section>
+
+    <section class="section" id="bottleneck">
+      <p class="kicker">The bottleneck</p>
+      <h2>Drafting got fast. The bill is still the model.</h2>
+      <div class="prose">
+        <p>A router still calls a model. An exact cache misses the rephrase.</p>
+        <p>MorrowCache is the step that can skip the call.</p>
+      </div>
+    </section>
+
+    <section class="section" id="docs">
+      <p class="kicker">Resources</p>
+      <h2>Docs, and how to build on it</h2>
+      <div class="resources">
+        <a href="https://github.com/kushals256/jevcache/blob/main/README.md"><strong>README</strong><span>Install, loop, CLI</span></a>
+        <a href="https://github.com/kushals256/jevcache/blob/main/AGENT_SETUP.md"><strong>Agent setup</strong><span>Prompt to paste</span></a>
+        <a href="https://github.com/kushals256/jevcache/blob/main/CONTRIBUTING.md"><strong>Contributing</strong><span>Clone, test, principles</span></a>
+        <a href="https://github.com/kushals256/jevcache/blob/main/SECURITY.md"><strong>Security</strong><span>What stays on disk</span></a>
+        <a href="https://www.npmjs.com/package/@kushalicious/jevcache"><strong>npm</strong><span>@kushalicious/jevcache</span></a>
+        <a href="https://github.com/kushals256/jevcache/issues"><strong>Issues</strong><span>Bugs and ideas</span></a>
+      </div>
+      <pre class="snippet after"><code>git clone https://github.com/kushals256/jevcache
+cd jevcache && npm install && npm test</code></pre>
+      <p class="note">Fail-open. Prefer a miss over a wrong hit. Package name stays <code>@kushalicious/jevcache</code>. New backends implement <code>IntentAdjudicator</code>.</p>
+    </section>
+
+    <section class="section faq" id="faq">
+      <p class="kicker">FAQ</p>
+      <h2>Straight answers</h2>
+      <details>
+        <summary>Do I need OpenRouter?</summary>
+        <p>For cloud Jev, yes. For local Kev or Laya, no — not for admits. Upstream chat still needs a model key unless you mock it.</p>
+      </details>
+      <details>
+        <summary>Does it run on my laptop?</summary>
+        <p>The proxy always does. The adjudicator can too, on a System One server you run yourself.</p>
+      </details>
+      <details>
+        <summary>Streaming and tools?</summary>
+        <p>Bypassed in this version. Those calls go straight upstream and are not cached.</p>
+      </details>
+      <details>
+        <summary>Will it ever return a wrong hit?</summary>
+        <p>Possible. Raise the intent threshold or run shadow mode while you validate. We do not claim zero false positives.</p>
+      </details>
+      <details>
+        <summary>Where do the numbers come from?</summary>
+        <p>Stars and npm installs load from the public APIs (fallback 10 and 367). Tests are the 55 that passed in vitest. The 2817 ms → 423 ms pair is one recorded demo. Word-overlap false-positive rate is from the offline eval on 103 pairs.</p>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    <span>MorrowCache</span>
+    <a href="https://github.com/kushals256/jevcache">GitHub</a>
+    <a href="https://www.npmjs.com/package/@kushalicious/jevcache">npm</a>
+    <a href="https://github.com/kushals256/jevcache/blob/main/CONTRIBUTING.md">Contribute</a>
+    <span>MIT</span>
+  </footer>
+  <script src="js/site.js"></script>
+</body>
+</html>

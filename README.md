@@ -84,15 +84,16 @@ See [`results/eval.json`](./results/eval.json). **Published honest number:** on 
 ## Easiest path: paste into Cursor (or any coding agent)
 
 **Open a new agent chat → copy the whole block below → send.**  
-The agent installs jevcache, wires `OPENAI_BASE_URL`, and proves **MISS → HIT**. Same prompt lives in [`AGENT_SETUP.md`](./AGENT_SETUP.md).
+The agent installs MorrowCache (`@kushalicious/jevcache`), wires `OPENAI_BASE_URL`, and proves **MISS → HIT**. Same prompt lives in [`AGENT_SETUP.md`](./AGENT_SETUP.md) and on the site: [morrowcache.vercel.app/agent-setup](https://morrowcache.vercel.app/agent-setup).
 
 ```text
-You are setting up jevcache for me in this project.
+You are setting up MorrowCache (npm: @kushalicious/jevcache) for me in this project.
 
-Goal: run an OpenAI-compatible local proxy that caches chat completions when TypeSafe Jev judges "same intent", so repeated/paraphrased LLM calls cost less while I build.
+Goal: run a local OpenAI-compatible proxy that skips chat completions when a same-intent adjudicator admits a paraphrase (not cosine). Default judge = cloud TypeSafe Jev; local Kev / Laya / Laya MLX / any System One also supported.
 
 Repo: https://github.com/kushals256/jevcache
 npm: npx @kushalicious/jevcache@latest
+Site: https://morrowcache.vercel.app/agent-setup
 
 Do ALL of the following without asking me to run terminal commands myself (you run them):
 
@@ -102,20 +103,29 @@ Do ALL of the following without asking me to run terminal commands myself (you r
       (fallback: npx --yes github:kushals256/jevcache doctor)
    b) If that fails, use Docker with ghcr.io/kushals256/jevcache:latest on port 8080
    c) Or clone into ../jevcache, npm install, npm run build.
-3. Ask me ONCE for an OpenRouter API key (https://openrouter.ai/keys) if OPENROUTER_API_KEY is not set AND I am not using a local adjudicator. If I want local Kev/Laya instead, set ADJUDICATOR=kev (or laya) and skip the OpenRouter key for admits. Save keys to .env (never commit; ensure .gitignore has .env).
-4. Run: npx @kushalicious/jevcache init  (writes OPENAI_BASE_URL into .env)
-5. Start jevcache in the background on http://127.0.0.1:8080 and verify GET /healthz.
-6. Wire THIS app so OpenAI-compatible clients use baseURL "http://127.0.0.1:8080/v1".
-7. Add SETUP_JEVCACHE.md with start command, baseURL, and /stats link.
-8. Optionally add .cursor/rules/jevcache.mdc so future agents keep that baseURL.
-9. Prove it: paraphrased prompts → expect MISS then HIT. Show X-Jevcache headers or /stats.
+3. Ask me ONCE which adjudicator path I want:
+   A) Cloud Jev (default) — need OPENROUTER_API_KEY for same-intent admits
+   B) Local Kev / Laya / Laya MLX / System One — set ADJUDICATOR=kev|laya|laya-mlx|systemone;
+      no OpenRouter key required for admits. For systemone also set ADJUDICATOR_URL + ADJUDICATOR_MODEL.
+   If neither path is ready, warn that the proxy will run EXACT-ONLY (paraphrases will MISS).
+4. Ask for an upstream chat API key if needed for real completions, or use MOCK_UPSTREAM=1 for a synthetic demo.
+   Save secrets to .env (never commit; ensure .gitignore has .env).
+5. Run: npx @kushalicious/jevcache init  (writes OPENAI_BASE_URL into .env)
+6. Start MorrowCache in the background on http://127.0.0.1:8080 (or PORT if set). Verify GET /healthz.
+   Prefer: npx @kushalicious/jevcache doctor --live
+7. Wire THIS app so OpenAI-compatible clients use baseURL "http://127.0.0.1:8080/v1".
+8. Add SETUP_JEVCACHE.md with start command, ADJUDICATOR kind, baseURL, and /stats link.
+9. Optionally add .cursor/rules/jevcache.mdc so future agents keep that baseURL.
+10. Prove it: paraphrased prompts → expect MISS then HIT (or run start --demo). Show X-Jevcache headers or /stats.
+    Do not expect HIT for streaming or tools requests (bypass by design).
 
 Do not commit secrets. If install fails, try the next method (npx → docker → clone).
 
-When done, tell me: start command, baseURL, key location, whether MISS → HIT passed, stats URL.
+When done, tell me: start command, ADJUDICATOR kind, baseURL, key locations (not values), whether MISS → HIT passed, stats URL.
 ```
 
 You’ll need an [OpenRouter](https://openrouter.ai/keys) key when the agent asks **if you want cloud Jev**. For local Kev/Laya instead, tell the agent to set `ADJUDICATOR=kev` (or `laya`) and skip the OpenRouter prompt for admits. Prefer this path if you’re already in Cursor / Claude Code / Windsurf.
+
 
 ---
 

@@ -1,31 +1,11 @@
-# Paste this into Cursor / Claude Code / any coding agent
+// Keep in sync with ../../AGENT_SETUP.md (fenced prompt body only)
 
-Copy everything inside the box below into a **new chat**. The agent will install `@kushalicious/jevcache` (**MorrowCache**), wire your app, and prove a MISS → HIT.
+export const INSTALL = "npx @kushalicious/jevcache@latest"
 
-Live page with one-click copy: [morrowcache.vercel.app/agent-setup](https://morrowcache.vercel.app/agent-setup)
+export const BASE_URL_SNIPPET = `baseURL: "http://127.0.0.1:8080/v1"`
 
----
-
-## Adjudicator paths
-
-| Mode | Env | OpenRouter for admits? |
-| --- | --- | --- |
-| **Jev** (default) | omit `ADJUDICATOR` | Yes — `OPENROUTER_API_KEY` |
-| **Kev** (local) | `ADJUDICATOR=kev` | No — default `http://127.0.0.1:8008` |
-| **Laya** (local) | `ADJUDICATOR=laya` | No — default `http://127.0.0.1:8000` |
-| **Laya MLX** | `ADJUDICATOR=laya-mlx` | No |
-| **Any System One** | `ADJUDICATOR=systemone` + `ADJUDICATOR_URL` + `ADJUDICATOR_MODEL` | No (unless your server needs a key) |
-
-**Keys split:** admit key (Jev/OpenRouter or local System One) is separate from **upstream chat** key. For a keyless synthetic demo use `MOCK_UPSTREAM=1`. Neither Jev nor a local adjudicator → **exact-only** (paraphrases miss).
-
-Default proxy port: **8080** (`http://127.0.0.1:8080/v1`).
-
----
-
-## Agent prompt (copy all)
-
-```text
-You are setting up MorrowCache (npm: @kushalicious/jevcache) for me in this project.
+/** Full paste-into-agent prompt — byte-identical to AGENT_SETUP.md fence */
+export const AGENT_PROMPT = `You are setting up MorrowCache (npm: @kushalicious/jevcache) for me in this project.
 
 Goal: run a local OpenAI-compatible proxy that skips chat completions when a same-intent adjudicator admits a paraphrase (not cosine). Default judge = cloud TypeSafe Jev; local Kev / Laya / Laya MLX / any System One also supported.
 
@@ -59,15 +39,6 @@ Do ALL of the following without asking me to run terminal commands myself (you r
 
 Do not commit secrets. If install fails, try the next method (npx → docker → clone).
 
-When done, tell me: start command, ADJUDICATOR kind, baseURL, key locations (not values), whether MISS → HIT passed, stats URL.
-```
+When done, tell me: start command, ADJUDICATOR kind, baseURL, key locations (not values), whether MISS → HIT passed, stats URL.`
 
----
-
-## After the agent finishes
-
-1. Confirm `GET http://127.0.0.1:8080/healthz` is ok.
-2. Open `http://127.0.0.1:8080/stats` or run `jevcache status` / `jevcache doctor --live`.
-3. Keep API keys only in local `.env` (never commit).
-4. Freshness is on by default. Rollback: `FRESHNESS_MODE=off`.
-5. Local example: `ADJUDICATOR=kev npx @kushalicious/jevcache@latest start`
+export const AGENT_PROMPT_PREVIEW = AGENT_PROMPT.split("\n").slice(0, 6).join("\n")

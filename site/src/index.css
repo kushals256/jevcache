@@ -1,0 +1,207 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Geist";
+  src: url("/fonts/Geist-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src: url("/fonts/GeistMono-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Pixel Circle";
+  src: url("/fonts/GeistPixel-Circle.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Pixel Square";
+  src: url("/fonts/GeistPixel-Square.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme inline {
+  --color-ink: #08101f;
+  --color-bone: #eef3fb;
+  --color-muted: #8b97ab;
+  --color-body: #c5d0e0;
+  --color-amber: #f0a45c;
+  --color-hit: #6ba3ff;
+  --color-panel: #10192b;
+  --color-elevated: #162033;
+  --color-line: rgba(238, 243, 251, 0.08);
+  --color-line-strong: rgba(238, 243, 251, 0.14);
+  --color-background: #08101f;
+  --color-foreground: #eef3fb;
+  --color-card: #121c2e;
+  --color-card-foreground: #eef3fb;
+  --color-primary: #6ba3ff;
+  --color-primary-foreground: #08101f;
+  --color-secondary: #182338;
+  --color-secondary-foreground: #eef3fb;
+  --color-muted-foreground: #a8b4c8;
+  --color-accent: #6ba3ff;
+  --color-accent-foreground: #08101f;
+  --color-border: rgba(238, 243, 251, 0.08);
+  --color-ring: #6ba3ff;
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+  --font-pixel-circle: "Geist Pixel Circle", "Geist Mono", ui-monospace, monospace;
+  --font-pixel-square: "Geist Pixel Square", "Geist Mono", ui-monospace, monospace;
+  --radius-lg: 0.75rem;
+  --radius-md: 0.5rem;
+  --radius-sm: 0.375rem;
+}
+
+@utility font-pixel-circle {
+  font-family: var(--font-pixel-circle);
+  font-weight: 500;
+}
+
+@utility font-pixel-square {
+  font-family: var(--font-pixel-square);
+  font-weight: 500;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply m-0 bg-ink text-bone font-sans antialiased;
+    font-size: 15px;
+    line-height: 1.5;
+    letter-spacing: -0.011em;
+    background-image:
+      radial-gradient(ellipse 90% 55% at 50% -25%, rgba(107, 163, 255, 0.22), transparent 55%),
+      radial-gradient(ellipse 45% 35% at 100% 5%, rgba(107, 163, 255, 0.1), transparent 50%);
+    background-attachment: fixed;
+  }
+  a {
+    color: inherit;
+  }
+  code,
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+  ::selection {
+    background: rgba(107, 163, 255, 0.35);
+    color: #e8eef8;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-hit);
+    outline-offset: 2px;
+  }
+}
+
+.grain {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  opacity: 0.03;
+  z-index: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+.section-anchor {
+  scroll-margin-top: calc(56px + env(safe-area-inset-top, 0px) + 12px);
+}
+
+.fig {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.display {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.receipt {
+  display: block;
+  margin-top: 0.85rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--color-muted);
+  letter-spacing: 0.01em;
+}
+
+/* metal-fx stays opacity:0 until onFirstCopy — keep CTA readable if first frame stalls */
+.metal-fx-root {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.glass-effect {
+  background: repeating-radial-gradient(
+    circle at 50% 50%,
+    rgb(255 255 255 / 0),
+    rgba(107, 163, 255, 0.12) 10px,
+    rgba(238, 243, 251, 0.35) 31px
+  );
+  filter: url(#fractal-noise-glass);
+  background-size: 6px 6px;
+}
+
+.section-fade {
+  pointer-events: none;
+  position: absolute;
+  inset-inline: 0;
+  height: 64px;
+  z-index: 1;
+}
+.section-fade-top {
+  top: 0;
+  background: linear-gradient(to bottom, var(--color-ink), transparent);
+}
+.section-fade-bottom {
+  bottom: 0;
+  background: linear-gradient(to top, var(--color-ink), transparent);
+}
+
+.works-marquee {
+  display: flex;
+  width: max-content;
+  gap: 2.5rem;
+  animation: works-scroll 28s linear infinite;
+}
+.works-marquee:hover {
+  animation-play-state: paused;
+}
+@keyframes works-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .works-marquee {
+    animation: none;
+    flex-wrap: wrap;
+    width: 100%;
+    justify-content: center;
+  }
+}
