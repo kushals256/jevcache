@@ -3,201 +3,392 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=1920, height=1080" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <title>MorrowCache — launch showreel</title>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
     <style>
+      @font-face {
+        font-family: "Geist";
+        src: url("./assets/fonts/Geist-Variable.woff2") format("woff2");
+        font-weight: 100 900;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "Geist Mono";
+        src: url("./assets/fonts/GeistMono-Variable.woff2") format("woff2");
+        font-weight: 100 900;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "Geist Pixel Circle";
+        src: url("./assets/fonts/GeistPixel-Circle.woff2") format("woff2");
+        font-weight: 400;
+        font-display: block;
+      }
       :root {
-        --bg: #0b0c0e;
-        --panel: #14161b;
-        --line: #2a2f3a;
-        --text: #f3f4f6;
-        --muted: #8b93a1;
-        --dim: #5a6270;
-        --green: #3dff8a;
-        --green-soft: rgba(61, 255, 138, 0.14);
-        --green-glow: rgba(61, 255, 138, 0.4);
-        --red: #ff6b6b;
-        --red-soft: rgba(255, 107, 107, 0.12);
+        --ink: #08101f;
+        --panel: #10192b;
+        --elevated: #162033;
+        --bone: #eef3fb;
+        --body: #c5d0e0;
+        --muted: #8b97ab;
+        --hit: #6ba3ff;
+        --amber: #f0a45c;
+        --line: rgba(238, 243, 251, 0.1);
       }
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body {
-        width: 1920px; height: 1080px; overflow: hidden;
-        background: var(--bg);
-        font-family: "IBM Plex Sans", system-ui, sans-serif;
-        color: var(--text);
+        background: var(--ink);
+        color: var(--bone);
+        font-family: "Geist", system-ui, sans-serif;
         -webkit-font-smoothing: antialiased;
       }
       #root {
         position: relative;
-        width: 1920px; height: 1080px;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--ink);
+      }
+      .desk-bg {
+        position: absolute;
+        inset: 0;
         background:
-          radial-gradient(ellipse 72% 58% at 50% 48%, #13161d 0%, var(--bg) 72%);
+          radial-gradient(ellipse 80% 60% at 55% 42%, rgba(107, 163, 255, 0.14) 0%, transparent 55%),
+          radial-gradient(ellipse 45% 35% at 18% 78%, rgba(240, 164, 92, 0.07) 0%, transparent 50%),
+          linear-gradient(165deg, #0b1424 0%, var(--ink) 45%, #060b14 100%);
       }
-      #root::before {
+      .desk-bg::after {
         content: "";
-        position: absolute; inset: 0;
+        position: absolute;
+        inset: 0;
         background-image:
-          linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+          linear-gradient(rgba(238, 243, 251, 0.028) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(238, 243, 251, 0.028) 1px, transparent 1px);
         background-size: 56px 56px;
-        mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, #000 15%, transparent 78%);
+        mask-image: radial-gradient(ellipse 70% 60% at 50% 48%, #000 15%, transparent 72%);
         pointer-events: none;
       }
-
-      .headline {
-        position: absolute; top: 78px; left: 0; right: 0;
-        text-align: center;
-        font-size: 52px; font-weight: 600;
-        letter-spacing: -0.025em; line-height: 1.15;
-      }
-      .headline .em { color: var(--green); }
-
-      .query {
-        position: absolute; top: 168px; left: 50%;
-        width: 860px; height: 58px;
-        margin-left: -430px;
-        display: flex; align-items: center; gap: 14px;
-        padding: 0 22px;
-        background: var(--panel);
-        border: 1px solid var(--line);
-        border-radius: 12px;
-      }
-      .query .dot {
-        width: 9px; height: 9px; border-radius: 50%;
-        background: var(--green);
-        box-shadow: 0 0 12px var(--green-glow);
-        flex-shrink: 0;
-      }
-      .query .q {
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 17px; font-weight: 500; color: var(--text);
-        white-space: nowrap;
-      }
-
-      .wires {
-        position: absolute; inset: 0;
-        width: 1920px; height: 1080px;
+      .grain {
+        position: absolute;
+        inset: 0;
+        opacity: 0.07;
         pointer-events: none;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        mix-blend-mode: overlay;
       }
-      .wires path {
-        fill: none;
-        stroke: var(--green);
-        stroke-width: 2.4;
-        stroke-linecap: round;
-        filter: drop-shadow(0 0 5px var(--green-glow));
+      .layer {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        perspective: 1400px;
       }
-      .wires path.dim {
-        stroke: #3a4252;
-        filter: none;
-        stroke-width: 1.8;
+      .hdr {
+        position: absolute;
+        top: 7%;
+        left: 8%;
+        right: 8%;
+        font-family: "Geist Mono", monospace;
+        font-size: 15px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--muted);
+        z-index: 20;
       }
-
-      .col { position: absolute; top: 290px; width: 400px; }
-      .col.left { left: 120px; }
-      .col.right { right: 120px; }
-      .col-label {
-        font-size: 13px; font-weight: 600;
-        letter-spacing: 0.16em; text-transform: uppercase;
-        color: var(--dim); margin-bottom: 18px;
+      .hdr .live { color: var(--hit); }
+      .brand-pin {
+        position: absolute;
+        top: 6.5%;
+        right: 8%;
+        font-family: "Geist Pixel Circle", monospace;
+        font-size: 22px;
+        letter-spacing: 0.04em;
+        color: var(--bone);
+        z-index: 20;
       }
-      .card {
-        background: var(--panel);
+      .desk {
+        position: relative;
+        width: 1180px;
+        height: 620px;
+        transform-style: preserve-3d;
+      }
+      .blotter {
+        position: absolute;
+        inset: 40px 20px 20px;
+        border-radius: 8px;
+        background:
+          linear-gradient(180deg, rgba(22, 32, 51, 0.95), rgba(16, 25, 43, 0.98));
         border: 1px solid var(--line);
-        border-radius: 14px;
-        padding: 20px 22px;
+        box-shadow:
+          0 40px 100px rgba(0, 0, 0, 0.55),
+          inset 0 1px 0 rgba(238, 243, 251, 0.06);
+      }
+      .slip {
+        position: absolute;
+        width: 420px;
+        padding: 28px 30px 24px;
+        background: linear-gradient(165deg, #f4f7fc 0%, #e4ebf5 100%);
+        color: #0c1422;
+        border-radius: 4px;
+        box-shadow:
+          0 18px 40px rgba(0, 0, 0, 0.35),
+          0 2px 0 rgba(255, 255, 255, 0.5) inset;
+        font-family: "Geist Mono", monospace;
+        transform-origin: center center;
+      }
+      .slip .fig {
+        font-size: 11px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #3a4558;
         margin-bottom: 14px;
       }
-      .card .tag {
-        font-size: 12px; font-weight: 600;
-        letter-spacing: 0.1em; text-transform: uppercase;
-        color: var(--dim); margin-bottom: 10px;
+      .slip .line {
+        font-size: 22px;
+        font-weight: 600;
+        line-height: 1.35;
+        letter-spacing: -0.02em;
+        color: #0a101c;
+        min-height: 1.35em;
       }
-      .card .body {
-        font-size: 20px; font-weight: 500; line-height: 1.35;
+      .slip .line.dim { color: #3a4558; }
+      .slip .meta {
+        margin-top: 18px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
       }
-      .card .meta {
-        margin-top: 12px;
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 14px; color: var(--muted);
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        padding: 7px 12px;
+        border-radius: 3px;
+        border: 1.5px solid currentColor;
       }
-      .card.miss {
-        border-color: rgba(255, 107, 107, 0.4);
-        background: linear-gradient(180deg, var(--red-soft), var(--panel));
+      .tag.miss { color: #8a4a10; background: rgba(240, 164, 92, 0.18); }
+      .tag.hit { color: #1a4fa8; background: rgba(107, 163, 255, 0.2); }
+      .tag.voided {
+        color: #3a4558;
+        text-decoration: line-through;
+        border-style: dashed;
+        opacity: 0.85;
       }
-      .card.miss .tag { color: var(--red); }
-      .card.hit {
-        border-color: rgba(61, 255, 138, 0.5);
-        background: linear-gradient(180deg, var(--green-soft), var(--panel));
-        box-shadow: 0 0 28px rgba(61, 255, 138, 0.14);
-      }
-      .card.hit .tag { color: var(--green); }
-      .card.hit .body { color: var(--green); }
+      .tag.refuse { color: #8a4a10; background: rgba(240, 164, 92, 0.2); }
       .bar {
-        margin-top: 14px; height: 7px;
-        background: #222833; border-radius: 4px; overflow: hidden;
+        flex: 1;
+        height: 6px;
+        border-radius: 3px;
+        background: rgba(12, 20, 34, 0.12);
+        overflow: hidden;
+        min-width: 120px;
       }
       .bar > i {
-        display: block; height: 100%; width: 100%;
+        display: block;
+        height: 100%;
+        width: 100%;
         transform-origin: left center;
-        transform: scaleX(0);
-        background: linear-gradient(90deg, #1faa55, var(--green));
-        border-radius: 4px;
-        box-shadow: 0 0 10px var(--green-glow);
+        background: linear-gradient(90deg, #3d6bb8, #6ba3ff);
       }
-
-      .hub {
+      .stamp {
         position: absolute;
-        left: 50%; top: 500px;
-        width: 340px; height: 168px;
-        margin-left: -170px; margin-top: -84px;
+        width: 210px;
+        height: 210px;
+        border-radius: 50%;
+        border: 6px solid var(--hit);
+        color: var(--hit);
+        display: flex;
+        align-items: center;
+        justify-content: center;
         text-align: center;
-        padding: 32px 28px 28px;
-        background: linear-gradient(180deg, #152018 0%, #101612 100%);
-        border: 1.5px solid rgba(61, 255, 138, 0.55);
-        border-radius: 18px;
-        box-shadow:
-          0 0 0 1px rgba(61, 255, 138, 0.08),
-          0 0 48px rgba(61, 255, 138, 0.25),
-          0 24px 70px rgba(0, 0, 0, 0.5);
+        font-family: "Geist", sans-serif;
+        font-weight: 800;
+        font-size: 28px;
+        letter-spacing: -0.03em;
+        line-height: 1.05;
+        text-transform: uppercase;
+        background: rgba(8, 16, 31, 0.15);
+        box-shadow: 0 0 0 8px rgba(107, 163, 255, 0.12), 0 20px 50px rgba(0, 0, 0, 0.4);
+        transform: rotate(-18deg);
+        z-index: 8;
       }
-      .hub .name {
-        font-size: 36px; font-weight: 700;
-        letter-spacing: -0.03em; color: var(--green);
-        text-shadow: 0 0 28px rgba(61, 255, 138, 0.4);
+      .stamp.amber {
+        border-color: var(--amber);
+        color: var(--amber);
+        box-shadow: 0 0 0 8px rgba(240, 164, 92, 0.12), 0 20px 50px rgba(0, 0, 0, 0.4);
       }
-      .hub .sub {
+      .stamp.charge {
+        border-color: var(--amber);
+        color: var(--amber);
+        font-size: 34px;
+      }
+      .ink-bloom {
+        position: absolute;
+        width: 280px;
+        height: 280px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(107, 163, 255, 0.45) 0%, transparent 68%);
+        pointer-events: none;
+        z-index: 7;
+      }
+      .payoff {
+        position: absolute;
+        right: 48px;
+        bottom: 56px;
+        text-align: right;
+        z-index: 9;
+      }
+      .payoff .big {
+        font-size: 72px;
+        font-weight: 700;
+        letter-spacing: -0.04em;
+        color: var(--hit);
+        line-height: 1;
+      }
+      .payoff .sub {
         margin-top: 8px;
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 16px; font-weight: 500;
-        color: rgba(61, 255, 138, 0.72);
+        font-family: "Geist Mono", monospace;
+        font-size: 20px;
+        color: var(--body);
       }
-      .hub .intent {
-        margin-top: 20px;
-        display: inline-flex; align-items: center;
-        padding: 9px 16px; border-radius: 9px;
-        background: rgba(61, 255, 138, 0.1);
-        border: 1px solid rgba(61, 255, 138, 0.28);
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 16px; font-weight: 600; color: var(--green);
+      .race {
+        width: 980px;
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
       }
-
-      .punch {
-        position: absolute; bottom: 96px; left: 0; right: 0;
+      .race-row {
+        display: grid;
+        grid-template-columns: 220px 1fr 260px;
+        gap: 18px;
+        align-items: center;
+      }
+      .race-name { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; }
+      .race-name.win { color: var(--hit); }
+      .race-bar {
+        height: 12px;
+        border-radius: 6px;
+        background: var(--elevated);
+        overflow: hidden;
+      }
+      .race-bar > i {
+        display: block;
+        height: 100%;
+        width: 100%;
+        transform-origin: left center;
+        border-radius: 6px;
+      }
+      .race-bar > i.muted { background: rgba(238, 243, 251, 0.22); }
+      .race-bar > i.amber { background: var(--amber); }
+      .race-bar > i.hit { background: var(--hit); }
+      .race-note {
+        font-family: "Geist Mono", monospace;
+        font-size: 16px;
+        color: var(--muted);
+        text-align: right;
+      }
+      .race-note.bad { color: var(--amber); }
+      .plate {
+        width: min(980px, 92%);
+        border-radius: 14px;
+        border: 1px solid rgba(238, 243, 251, 0.14);
+        background: rgba(16, 25, 43, 0.94);
+        padding: 36px 40px;
+        box-shadow: 0 30px 90px rgba(0, 0, 0, 0.45);
+        font-family: "Geist Mono", monospace;
+      }
+      .plate .was {
+        font-size: 26px;
+        color: var(--muted);
+        text-decoration: line-through;
+        margin-bottom: 16px;
+      }
+      .plate .now {
+        font-size: 34px;
+        color: var(--hit);
+        font-weight: 600;
+      }
+      .plate .hint {
+        margin-top: 18px;
+        font-size: 18px;
+        color: var(--body);
+        font-family: "Geist", sans-serif;
+      }
+      .cta {
         text-align: center;
-        font-size: 26px; font-weight: 500; color: var(--muted);
-        letter-spacing: -0.01em;
       }
-      .punch strong { color: var(--text); font-weight: 600; }
-      .brand {
-        position: absolute; bottom: 36px; right: 48px;
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 15px; color: var(--dim);
+      .cta .cmd {
+        display: inline-block;
+        margin-top: 10px;
+        font-family: "Geist Mono", monospace;
+        font-size: 38px;
+        font-weight: 600;
+        padding: 24px 40px;
+        border-radius: 14px;
+        border: 1px solid rgba(238, 243, 251, 0.16);
+        background: var(--panel);
+        color: var(--bone);
       }
+      .cta .url {
+        margin-top: 22px;
+        font-size: 22px;
+        color: var(--muted);
+      }
+      .end {
+        text-align: center;
+        max-width: 1200px;
+      }
+      .end .lock {
+        font-family: "Geist Pixel Circle", monospace;
+        font-size: 56px;
+        letter-spacing: 0.03em;
+        margin-bottom: 28px;
+      }
+      .end .thesis {
+        font-size: 46px;
+        font-weight: 600;
+        letter-spacing: -0.035em;
+        line-height: 1.2;
+        text-wrap: balance;
+      }
+      .end .thesis .hit { color: var(--hit); }
+      .end .meta {
+        margin-top: 28px;
+        font-family: "Geist Mono", monospace;
+        font-size: 18px;
+        color: var(--muted);
+      }
+      .cursor {
+        display: inline-block;
+        width: 2px;
+        height: 1.05em;
+        margin-left: 2px;
+        background: #2f6fd6;
+        vertical-align: -0.1em;
+      }
+      .void-x {
+        position: absolute;
+        inset: 18% 10%;
+        border: 5px solid rgba(139, 151, 171, 0.55);
+        transform: rotate(-8deg);
+        pointer-events: none;
+        opacity: 0;
+      }
+      .void-x::before, .void-x::after {
+        content: "";
+        position: absolute;
+        left: 8%;
+        right: 8%;
+        top: 50%;
+        height: 5px;
+        background: rgba(139, 151, 171, 0.7);
+      }
+      .void-x::before { transform: rotate(28deg); }
+      .void-x::after { transform: rotate(-28deg); }
     </style>
   </head>
   <body>
@@ -205,133 +396,321 @@
       id="root"
       data-composition-id="main"
       data-start="0"
-      data-duration="7.5"
+      data-duration="31.5"
       data-width="1920"
       data-height="1080"
     >
-      <div class="clip" data-start="0" data-duration="7.5" data-track-index="0" style="position:absolute;inset:0">
-        <h1 class="headline" id="headline">
-          Two prompts. Same intent. <span class="em">Why call twice?</span>
-        </h1>
+      <div id="desk-bg" class="clip desk-bg" data-start="0" data-duration="31.5" data-track-index="0"></div>
+      <div id="grain" class="clip grain" data-start="0" data-duration="31.5" data-track-index="1"></div>
 
-        <div class="query" id="query">
-          <span class="dot"></span>
-          <span class="q">agent → OpenAI-compatible chat · paraphrases of “explain mutexes”</span>
-        </div>
+      <audio
+        id="score"
+        class="clip"
+        data-start="0"
+        data-duration="31.5"
+        data-track-index="10"
+        src="./assets/audio/score.wav"
+        preload="auto"
+      ></audio>
 
-        <svg class="wires" viewBox="0 0 1920 1080" aria-hidden="true">
-          <path id="w1" d="M520 380 C640 380, 720 460, 790 500" />
-          <path id="w2" d="M520 500 C640 500, 720 510, 790 510" />
-          <path id="w3" class="dim" d="M1130 480 C1220 420, 1300 380, 1400 365" />
-          <path id="w4" d="M1130 520 C1220 560, 1300 590, 1400 600" />
-        </svg>
-
-        <div class="col left">
-          <div class="col-label" id="labL">Incoming</div>
-          <div class="card" id="c1">
-            <div class="tag">Prompt A</div>
-            <div class="body">“Explain mutexes simply please”</div>
-            <div class="meta">first call · cold</div>
+      <!-- DESK / TRACE -->
+      <div id="scene-desk" class="clip layer" data-start="0" data-duration="11.0" data-track-index="2">
+        <div class="hdr" id="hdr-desk">FIG 01 · Double bill</div>
+        <div class="brand-pin" id="brand-pin">MorrowCache</div>
+        <div class="desk" id="desk">
+          <div class="blotter"></div>
+          <div class="slip" id="slip-a" style="left: 70px; top: 90px; transform: rotate(-3deg);">
+            <div class="fig">Charge slip · call 1</div>
+            <div class="line">Explain mutexes simply please</div>
+            <div class="meta">
+              <span class="tag miss" id="tag-a">MISS · 2817ms</span>
+              <span class="bar"><i id="bar-a"></i></span>
+            </div>
           </div>
-          <div class="card" id="c2">
-            <div class="tag">Prompt B</div>
-            <div class="body">“Please explain mutexes simply”</div>
-            <div class="meta">paraphrase · same ask</div>
+          <div class="slip" id="slip-b" style="left: 520px; top: 150px; transform: rotate(4deg);">
+            <div class="fig">Charge slip · call 2</div>
+            <div class="line dim"><span id="prompt-b-text">Please explain mutexes simply</span><span class="cursor" id="cursor-b"></span></div>
+            <div class="meta">
+              <span class="tag miss" id="tag-b">CHARGE?</span>
+              <span class="bar"><i id="bar-b"></i></span>
+            </div>
+            <div class="void-x" id="void-x"></div>
           </div>
-        </div>
-
-        <div class="hub" id="hub">
-          <div class="name">jevcache</div>
-          <div class="sub">query + intent</div>
-          <div class="intent" id="intent">match · 0.94</div>
-        </div>
-
-        <div class="col right">
-          <div class="col-label" id="labR">Result</div>
-          <div class="card miss" id="c3">
-            <div class="tag">Miss · upstream</div>
-            <div class="body">2817ms</div>
-            <div class="meta">paid the model once</div>
-          </div>
-          <div class="card hit" id="c4">
-            <div class="tag">Hit · jev</div>
-            <div class="body">423ms · ~6.7× faster</div>
-            <div class="meta">same reply · intent 0.94</div>
-            <div class="bar"><i id="bar"></i></div>
+          <div class="stamp charge" id="stamp-charge" style="left: 310px; top: 280px;">Charge</div>
+          <div class="stamp" id="stamp-intent" style="left: 640px; top: 220px;">Same<br />intent</div>
+          <div class="ink-bloom" id="ink-bloom" style="left: 620px; top: 200px;"></div>
+          <div class="payoff" id="payoff">
+            <div class="big" id="pay-big">423ms</div>
+            <div class="sub" id="pay-sub">HIT · intent 0.94 · 6.7×</div>
           </div>
         </div>
+      </div>
 
-        <p class="punch" id="punch">The first call hits upstream. <strong>The rest skip it.</strong></p>
-        <div class="brand" id="brand">github.com/kushals256/jevcache</div>
+      <!-- RACE -->
+      <div id="scene-race" class="clip layer" data-start="10.8" data-duration="4.0" data-track-index="3">
+        <div class="hdr"><span class="live">Word overlap FPR 0.49</span> · n=103 offline</div>
+        <div class="race" id="race">
+          <div class="race-row" id="row-1">
+            <div class="race-name">Always call</div>
+            <div class="race-bar"><i class="muted" id="rb1"></i></div>
+            <div class="race-note">correct, expensive</div>
+          </div>
+          <div class="race-row" id="row-2">
+            <div class="race-name">Exact-only</div>
+            <div class="race-bar"><i class="amber" id="rb2"></i></div>
+            <div class="race-note">misses paraphrase</div>
+          </div>
+          <div class="race-row" id="row-3">
+            <div class="race-name">Word overlap</div>
+            <div class="race-bar"><i class="amber" id="rb3"></i></div>
+            <div class="race-note bad">wrong hits · FPR 0.49</div>
+          </div>
+          <div class="race-row" id="row-4">
+            <div class="race-name win">MorrowCache</div>
+            <div class="race-bar"><i class="hit" id="rb4"></i></div>
+            <div class="race-note">2817 → 423</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BASEURL -->
+      <div id="scene-base" class="clip layer" data-start="14.4" data-duration="4.0" data-track-index="4">
+        <div class="hdr">Drop-in · keep your model</div>
+        <div class="plate" id="base-plate">
+          <div class="was" id="base-was">baseURL: "https://api.openai.com/v1"</div>
+          <div class="now" id="base-now">baseURL: "http://127.0.0.1:8080/v1"</div>
+          <div class="hint" id="base-hint">OpenAI · OpenRouter · local OpenAI-compat</div>
+        </div>
+      </div>
+
+      <!-- REFUSE -->
+      <div id="scene-refuse" class="clip layer" data-start="18.0" data-duration="4.0" data-track-index="5">
+        <div class="hdr">Freshness · prefer a miss</div>
+        <div class="desk" style="width: 900px; height: 480px;">
+          <div class="blotter"></div>
+          <div class="slip" id="slip-fresh" style="left: 180px; top: 100px; width: 480px; transform: rotate(-2deg);">
+            <div class="fig">Charge slip · freshness</div>
+            <div class="line">"what's the latest"</div>
+            <div class="line dim" style="margin-top: 8px; font-size: 16px;">stored yesterday · should not reuse</div>
+            <div class="meta">
+              <span class="tag refuse" id="tag-refuse">REFUSE · fail-open</span>
+            </div>
+          </div>
+          <div class="stamp amber" id="stamp-refuse" style="left: 560px; top: 160px;">Refuse</div>
+        </div>
+      </div>
+
+      <!-- INSTALL -->
+      <div id="scene-install" class="clip layer" data-start="21.6" data-duration="5.2" data-track-index="6">
+        <div class="hdr">One command</div>
+        <div class="cta" id="cta">
+          <div class="cmd"><span id="cmd-text"></span><span class="cursor" id="cmd-cursor"></span></div>
+          <div class="url" id="cta-url">morrowcache.vercel.app</div>
+        </div>
+      </div>
+
+      <!-- END -->
+      <div id="scene-end" class="clip layer" data-start="26.4" data-duration="5.1" data-track-index="7">
+        <div class="end" id="end">
+          <div class="lock">MorrowCache</div>
+          <p class="thesis">
+            Routers pick a model.<br />
+            This decides whether to <span class="hit">call</span> one.
+          </p>
+          <div class="meta">morrowcache.vercel.app · recorded 2817→423 · intent 0.94</div>
+        </div>
       </div>
     </div>
 
     <script>
-      window.__timelines = window.__timelines || {};
+      // Shared with timing.json — picture reads the same cue map as the score.
+      const T = {
+        preroll: 0.3,
+        slipsLand: 0.55,
+        chargeStamp: 2.6,
+        paraphraseStart: 4.9,
+        intentStamp: 7.35,
+        voidHit: 8.1,
+        hitReveal: 8.55,
+        jaccardWrong: 11.2,
+        morrowWins: 13.0,
+        baseUrlCut: 14.6,
+        refuseStamp: 18.4,
+        installIn: 21.8,
+        endIn: 26.6,
+        out: 31.5,
+      };
 
-      const paths = ["#w1", "#w2", "#w3", "#w4"].map((sel) => {
-        const el = document.querySelector(sel);
-        const len = el.getTotalLength();
-        el.style.strokeDasharray = String(len);
-        el.style.strokeDashoffset = String(len);
-        return { el, len };
-      });
-
+      const PROMPT_B = "Please explain mutexes simply";
+      const INSTALL_CMD = "npx @kushalicious/jevcache@latest";
       const tl = gsap.timeline({ paused: true });
+      const ir = { immediateRender: false, overwrite: "auto" };
 
-      gsap.set(["#headline", "#query", "#labL", "#c1", "#c2", "#hub", "#intent", "#labR", "#c3", "#c4", "#punch", "#brand"], {
-        opacity: 0,
-      });
-      gsap.set(["#w1", "#w2", "#w3", "#w4"], { opacity: 0 });
-      gsap.set("#bar", { scaleX: 0, transformOrigin: "left center" });
-      gsap.set("#hub", { scale: 0.88 });
-      gsap.set(["#c1", "#c2"], { x: -28 });
-      gsap.set(["#c3", "#c4"], { x: 28 });
+      const setText = (sel, text) => {
+        const el = document.querySelector(sel);
+        if (el) el.textContent = text;
+      };
+      const setClass = (sel, cls) => {
+        const el = document.querySelector(sel);
+        if (el) el.className = cls;
+      };
 
-      // Build
-      tl.fromTo("#headline", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.55, ease: "power3.out" }, 0.12);
-      tl.fromTo("#query", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, 0.45);
-      tl.fromTo("#labL", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "sine.out" }, 0.85);
-      tl.fromTo("#c1", { opacity: 0, x: -28 }, { opacity: 1, x: 0, duration: 0.5, ease: "power3.out" }, 1.0);
-      tl.fromTo("#c2", { opacity: 0, x: -28 }, { opacity: 1, x: 0, duration: 0.5, ease: "power3.out" }, 1.22);
-      tl.fromTo("#hub", { opacity: 0, scale: 0.88 }, { opacity: 1, scale: 1, duration: 0.55, ease: "back.out(1.4)" }, 1.65);
+      gsap.set("#slip-a", { x: -80, y: -120, opacity: 0, rotate: -8 });
+      gsap.set("#slip-b", { x: 120, y: -160, opacity: 0, rotate: 10 });
+      gsap.set("#stamp-charge", { scale: 2.4, opacity: 0, y: -80 });
+      gsap.set("#stamp-intent", { scale: 2.6, opacity: 0, y: -100, rotate: -28 });
+      gsap.set("#ink-bloom", { scale: 0.2, opacity: 0 });
+      gsap.set("#payoff", { opacity: 0, y: 24 });
+      gsap.set("#bar-a", { scaleX: 0, transformOrigin: "left center" });
+      gsap.set("#bar-b", { scaleX: 0, transformOrigin: "left center" });
+      gsap.set("#cursor-b", { opacity: 0 });
+      gsap.set("#void-x", { opacity: 0, scale: 0.6 });
+      gsap.set("#brand-pin", { opacity: 0 });
+      gsap.set("#desk", { scale: 1.08, y: 30 });
+      gsap.set(["#rb1", "#rb2", "#rb3", "#rb4"], { scaleX: 0, transformOrigin: "left center" });
+      gsap.set("#scene-race", { opacity: 0 });
+      gsap.set("#scene-base", { opacity: 0 });
+      gsap.set("#scene-refuse", { opacity: 0 });
+      gsap.set("#scene-install", { opacity: 0 });
+      gsap.set("#scene-end", { opacity: 0 });
+      gsap.set("#stamp-refuse", { scale: 2.2, opacity: 0, y: -70, rotate: 16 });
+      gsap.set("#slip-fresh", { y: -40, opacity: 0 });
+      gsap.set("#cta", { opacity: 0, y: 20 });
+      gsap.set("#cta-url", { opacity: 0 });
+      gsap.set("#cmd-cursor", { opacity: 0 });
+      gsap.set("#cmd-text", {});
+      gsap.set("#base-was", { opacity: 0, x: -20 });
+      gsap.set("#base-now", { opacity: 0, x: -16 });
+      gsap.set("#base-hint", { opacity: 0 });
+      gsap.set("#race", { scale: 1.08, y: 24 });
+      gsap.set("#row-4", { filter: "brightness(1)" });
+      gsap.set("#end", { opacity: 0, y: 16 });
+      gsap.set("#prompt-b-text", {});
 
-      // Wire draw-in
-      paths.forEach(({ el, len }, i) => {
-        const start = i < 2 ? 2.05 + i * 0.12 : 3.15 + (i - 2) * 0.12;
-        tl.fromTo(
-          el,
-          { strokeDashoffset: len, opacity: 0 },
-          { strokeDashoffset: 0, opacity: 1, duration: 0.55, ease: "power2.inOut" },
-          start,
-        );
-      });
+      // Preroll: hold thumbnail-ready frame (MISS slip visible)
+      tl.set("#slip-a", { opacity: 1, x: 0, y: 0, rotate: -3 }, 0);
+      tl.set("#bar-a", { scaleX: 1 }, 0);
+      tl.set("#stamp-charge", { opacity: 0.35, scale: 1, y: 0 }, 0);
+      tl.to({}, { duration: T.preroll }, 0);
 
-      tl.fromTo("#intent", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 2.7);
+      // Cold open: desk settles, second slip threatens
+      tl.to("#desk", { scale: 1, y: 0, duration: 0.7, ease: "power3.out" }, T.preroll);
+      tl.fromTo("#brand-pin", { opacity: 0, y: -8 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out", ...ir }, T.preroll + 0.15);
+      tl.fromTo(
+        "#slip-b",
+        { opacity: 0, x: 140, y: -180, rotate: 12 },
+        { opacity: 1, x: 0, y: 0, rotate: 4, duration: 0.55, ease: "power4.out", ...ir },
+        T.slipsLand,
+      );
 
-      // Results
-      tl.fromTo("#labR", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "sine.out" }, 3.35);
-      tl.fromTo("#c3", { opacity: 0, x: 28 }, { opacity: 1, x: 0, duration: 0.48, ease: "power3.out" }, 3.5);
-      tl.fromTo("#c4", { opacity: 0, x: 28 }, { opacity: 1, x: 0, duration: 0.52, ease: "power3.out" }, 3.85);
-      tl.fromTo("#bar", { scaleX: 0 }, { scaleX: 0.94, duration: 0.7, ease: "power2.out" }, 4.3);
+      // CHARGE stamp slam on first slip
+      tl.fromTo(
+        "#stamp-charge",
+        { opacity: 0, scale: 2.6, y: -120 },
+        { opacity: 1, scale: 1, y: 0, duration: 0.28, ease: "back.out(2.4)", ...ir },
+        T.chargeStamp,
+      );
+      tl.to("#slip-a", { x: -6, y: 4, duration: 0.08, yoyo: true, repeat: 1, ease: "power2.inOut" }, T.chargeStamp + 0.12);
+      tl.fromTo("#bar-a", { scaleX: 0 }, { scaleX: 1, duration: 1.1, ease: "power1.inOut", ...ir }, T.chargeStamp + 0.15);
+      tl.to("#stamp-charge", { opacity: 0, scale: 0.9, duration: 0.35, ease: "power2.in" }, T.chargeStamp + 1.4);
 
-      // Soft hub pulse (finite, seek-safe)
-      tl.to("#hub", {
-        boxShadow: "0 0 0 1px rgba(61,255,138,0.12), 0 0 64px rgba(61,255,138,0.38), 0 24px 70px rgba(0,0,0,0.5)",
-        duration: 0.9,
-        ease: "sine.inOut",
-        yoyo: true,
-        repeat: 1,
-      }, 4.6);
+      // Paraphrase retype on slip B
+      tl.to("#hdr-desk", { opacity: 0, duration: 0.15 }, T.paraphraseStart - 0.2);
+      tl.call(() => setText("#hdr-desk", "FIG 01 · Wording changed"), null, T.paraphraseStart - 0.05);
+      tl.to("#hdr-desk", { opacity: 1, duration: 0.2 }, T.paraphraseStart);
+      tl.call(() => setText("#prompt-b-text", ""), null, T.paraphraseStart);
+      tl.set("#cursor-b", { opacity: 1 }, T.paraphraseStart);
+      for (let i = 1; i <= PROMPT_B.length; i++) {
+        const slice = PROMPT_B.slice(0, i);
+        tl.call(() => setText("#prompt-b-text", slice), null, T.paraphraseStart + 0.08 + i * 0.035);
+      }
+      tl.set("#cursor-b", { opacity: 0 }, T.paraphraseStart + 0.08 + PROMPT_B.length * 0.035 + 0.08);
+      tl.to("#slip-b .line", { color: "#0c1422", duration: 0.2 }, T.paraphraseStart + 0.2);
 
-      // Resolve
-      tl.fromTo("#punch", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 5.25);
-      tl.fromTo("#brand", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "sine.out" }, 5.6);
+      // SAME INTENT stamp
+      tl.call(() => setText("#hdr-desk", "FIG 01 · Same intent"), null, T.intentStamp - 0.15);
+      tl.fromTo(
+        "#stamp-intent",
+        { opacity: 0, scale: 2.8, y: -140, rotate: -34 },
+        { opacity: 1, scale: 1, y: 0, rotate: -18, duration: 0.32, ease: "back.out(2.2)", ...ir },
+        T.intentStamp,
+      );
+      tl.fromTo("#ink-bloom", { opacity: 0, scale: 0.15 }, { opacity: 1, scale: 1.15, duration: 0.45, ease: "power2.out", ...ir }, T.intentStamp + 0.08);
+      tl.to("#ink-bloom", { opacity: 0, duration: 0.5 }, T.intentStamp + 0.55);
+      tl.to("#slip-b", { x: 8, y: 6, duration: 0.08, yoyo: true, repeat: 1 }, T.intentStamp + 0.1);
+      tl.to("#stamp-intent", { x: 90, y: -40, scale: 0.72, opacity: 0.55, duration: 0.35, ease: "power2.out" }, T.intentStamp + 0.35);
 
-      // Hold end state
-      tl.to({}, { duration: 1.4 }, 6.1);
+      // Void second charge
+      tl.fromTo("#void-x", { opacity: 0, scale: 0.5 }, { opacity: 1, scale: 1, duration: 0.28, ease: "power3.out", ...ir }, T.voidHit);
+      tl.call(() => {
+        setText("#tag-b", "VOID · no second bill");
+        setClass("#tag-b", "tag voided");
+      }, null, T.voidHit + 0.05);
+      tl.to("#bar-b", { scaleX: 0.15, duration: 0.55, ease: "power2.inOut" }, T.voidHit);
+      tl.to("#slip-b", { opacity: 0.72, duration: 0.4 }, T.voidHit + 0.1);
+      tl.to("#stamp-intent", { opacity: 0, duration: 0.2, ease: "power2.in" }, T.voidHit - 0.05);
 
-      window.__timelines.main = tl;
+      // HIT payoff
+      tl.fromTo("#payoff", { opacity: 0, y: 28, scale: 0.92 }, { opacity: 1, y: 0, scale: 1, duration: 0.45, ease: "power3.out", ...ir }, T.hitReveal);
+      tl.fromTo("#pay-big", { scale: 0.8 }, { scale: 1, duration: 0.4, ease: "back.out(1.8)", ...ir }, T.hitReveal);
+      tl.call(() => {
+        setText("#tag-a", "STORED");
+        setClass("#tag-a", "tag hit");
+      }, null, T.hitReveal + 0.1);
+      tl.to("#desk", { scale: 0.92, y: -10, duration: 1.2, ease: "power2.inOut" }, T.hitReveal + 0.6);
+
+      // Race
+      tl.to("#scene-desk", { opacity: 0, duration: 0.2, ease: "power1.in" }, T.jaccardWrong - 0.35);
+      tl.fromTo("#scene-race", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out", ...ir }, T.jaccardWrong - 0.1);
+      tl.to("#race", { scale: 1, y: 0, duration: 0.55, ease: "power3.out" }, T.jaccardWrong - 0.1);
+      tl.fromTo("#rb1", { scaleX: 0 }, { scaleX: 1, duration: 0.55, ease: "power2.out", ...ir }, T.jaccardWrong);
+      tl.fromTo("#rb2", { scaleX: 0 }, { scaleX: 0.78, duration: 0.55, ease: "power2.out", ...ir }, T.jaccardWrong + 0.15);
+      tl.fromTo("#rb3", { scaleX: 0 }, { scaleX: 0.42, duration: 0.55, ease: "power2.out", ...ir }, T.jaccardWrong + 0.3);
+      tl.to("#row-3", { x: 6, duration: 0.08, yoyo: true, repeat: 3, ease: "power1.inOut" }, T.jaccardWrong + 0.55);
+      tl.fromTo("#rb4", { scaleX: 0 }, { scaleX: 0.18, duration: 0.7, ease: "power3.out", ...ir }, T.morrowWins);
+      tl.to("#race", { scale: 1.12, y: -18, duration: 0.55, ease: "power2.inOut" }, T.morrowWins);
+      tl.fromTo("#row-4", { filter: "brightness(1)" }, { filter: "brightness(1.35)", duration: 0.35, yoyo: true, repeat: 1, ...ir }, T.morrowWins + 0.15);
+
+      // baseURL
+      tl.to("#scene-race", { opacity: 0, duration: 0.18 }, T.baseUrlCut - 0.25);
+      tl.fromTo("#scene-base", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out", ...ir }, T.baseUrlCut);
+      tl.fromTo("#base-plate", { y: 48, opacity: 0, scale: 0.94 }, { y: 0, opacity: 1, scale: 1, duration: 0.45, ease: "power3.out", ...ir }, T.baseUrlCut + 0.05);
+      tl.fromTo("#base-was", { opacity: 0, x: -24 }, { opacity: 1, x: 0, duration: 0.35, ease: "power2.out", ...ir }, T.baseUrlCut + 0.2);
+      tl.fromTo("#base-now", { opacity: 0, x: -20, color: "#eef3fb" }, { opacity: 1, x: 0, color: "#6ba3ff", duration: 0.4, ease: "power3.out", ...ir }, T.baseUrlCut + 0.55);
+      tl.fromTo("#base-hint", { opacity: 0 }, { opacity: 1, duration: 0.3, ...ir }, T.baseUrlCut + 0.95);
+
+      // Refuse
+      tl.to("#scene-base", { opacity: 0, duration: 0.18 }, T.refuseStamp - 0.55);
+      tl.fromTo("#scene-refuse", { opacity: 0 }, { opacity: 1, duration: 0.28, ease: "power2.out", ...ir }, T.refuseStamp - 0.45);
+      tl.fromTo("#slip-fresh", { opacity: 0, y: -50, rotate: -8 }, { opacity: 1, y: 0, rotate: -2, duration: 0.45, ease: "power3.out", ...ir }, T.refuseStamp - 0.35);
+      tl.fromTo(
+        "#stamp-refuse",
+        { opacity: 0, scale: 2.4, y: -90, rotate: 24 },
+        { opacity: 1, scale: 1, y: 0, rotate: 12, duration: 0.32, ease: "back.out(2)", ...ir },
+        T.refuseStamp,
+      );
+      tl.to("#slip-fresh", { x: -4, y: 5, duration: 0.08, yoyo: true, repeat: 1 }, T.refuseStamp + 0.1);
+
+      // Install — type the command
+      tl.to("#scene-refuse", { opacity: 0, duration: 0.18 }, T.installIn - 0.25);
+      tl.fromTo("#scene-install", { opacity: 0 }, { opacity: 1, duration: 0.28, ...ir }, T.installIn - 0.1);
+      tl.fromTo("#cta", { opacity: 0, y: 24, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: "power3.out", ...ir }, T.installIn);
+      tl.call(() => setText("#cmd-text", ""), null, T.installIn + 0.15);
+      tl.set("#cmd-cursor", { opacity: 1 }, T.installIn + 0.15);
+      for (let i = 1; i <= INSTALL_CMD.length; i++) {
+        const slice = INSTALL_CMD.slice(0, i);
+        tl.call(() => setText("#cmd-text", slice), null, T.installIn + 0.2 + i * 0.028);
+      }
+      tl.set("#cmd-cursor", { opacity: 0 }, T.installIn + 0.2 + INSTALL_CMD.length * 0.028 + 0.12);
+      tl.fromTo("#cta-url", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out", ...ir }, T.installIn + 1.35);
+
+      // End
+      tl.to("#scene-install", { opacity: 0, duration: 0.3 }, T.endIn - 0.2);
+      tl.fromTo("#scene-end", { opacity: 0 }, { opacity: 1, duration: 0.35, ...ir }, T.endIn);
+      tl.fromTo("#end", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.55, ease: "power3.out", ...ir }, T.endIn + 0.05);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = tl;
       tl.seek(0);
     </script>
   </body>

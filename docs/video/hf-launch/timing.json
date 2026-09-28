@@ -1,0 +1,35 @@
+{
+  "fps": 60,
+  "duration": 31.5,
+  "preroll": 0.3,
+  "sampleRate": 48000,
+  "lufsTarget": -12.5,
+  "cues": {
+    "prerollEnd": 0.3,
+    "slipsLand": 0.55,
+    "chargeStamp": 2.6,
+    "paraphraseStart": 4.9,
+    "intentStamp": 7.35,
+    "voidHit": 8.1,
+    "hitReveal": 8.55,
+    "jaccardWrong": 11.2,
+    "morrowWins": 13.0,
+    "baseUrlCut": 14.6,
+    "refuseStamp": 18.4,
+    "installIn": 21.8,
+    "endIn": 26.6,
+    "out": 31.5
+  },
+  "beats": [0.3, 0.55, 1.1, 1.65, 2.2, 2.6, 3.15, 3.7, 4.25, 4.9, 5.45, 6.0, 6.55, 7.35, 8.1, 8.55, 9.3, 10.1, 11.2, 12.0, 13.0, 14.6, 15.4, 16.2, 17.0, 18.4, 19.2, 20.0, 21.8, 22.6, 23.4, 24.2, 25.0, 26.6, 27.4, 28.2, 29.0, 29.8, 30.6, 31.2],
+  "claims": {
+    "missMs": 2817,
+    "hitMs": 423,
+    "speedup": "6.7×",
+    "intent": "0.94",
+    "jaccardFpr": "0.49",
+    "jaccardN": 103,
+    "port": "8080",
+    "package": "@kushalicious/jevcache@latest",
+    "site": "morrowcache.vercel.app"
+  }
+}
