@@ -33,8 +33,7 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
-      # Prefer Trusted Publishing (OIDC). Falls back to NPM_TOKEN if set.
+      # OIDC Trusted Publisher (package settings on npm). Do not set NODE_AUTH_TOKEN —
+      # a granular token triggers EOTP and bypasses OIDC.
       - name: Publish to npm
         run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
