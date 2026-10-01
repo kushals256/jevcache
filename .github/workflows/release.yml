@@ -24,16 +24,23 @@ jobs:
             ghcr.io/${{ github.repository }}:${{ github.ref_name }}
   npm:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          registry-url: https://registry.npmjs.org
+          # Do NOT set registry-url — it writes empty _authToken and blocks OIDC Trusted Publisher.
+      - run: npm install -g npm@latest
       - run: npm ci
       - run: npm test
       - run: npm run build
-      # OIDC Trusted Publisher (package settings on npm). Do not set NODE_AUTH_TOKEN —
-      # a granular token triggers EOTP and bypasses OIDC.
       - name: Publish to npm
-        run: npm publish --access public --provenance
+        run: |
+          if [ -n "${NPM_CONFIG_USERCONFIG:-}" ] && [ -f "$NPM_CONFIG_USERCONFIG" ]; then
+            sed -i '/_authToken/d' "$NPM_CONFIG_USERCONFIG" || true
+          fi
+          unset NODE_AUTH_TOKEN NPM_TOKEN || true
+          npm publish --access public --provenance
