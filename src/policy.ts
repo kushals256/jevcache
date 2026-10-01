@@ -29,6 +29,29 @@ function hasNonTextParts(messages: ChatRequest["messages"]): boolean {
   return false;
 }
 
+function isActiveToolChoice(v: unknown): boolean {
+  if (v == null) return false;
+  if (v === "none") return false;
+  return true; // "auto" | "required" | { type: "function", ... }
+}
+
+/** True when the request carries real tool surface (empty arrays do not count). */
+export function hasActiveTools(body: ChatRequest): boolean {
+  if (Array.isArray(body.tools)) {
+    if (body.tools.length > 0) return true;
+  } else if (body.tools) {
+    return true;
+  }
+  if (Array.isArray(body.functions)) {
+    if (body.functions.length > 0) return true;
+  } else if (body.functions) {
+    return true;
+  }
+  if (isActiveToolChoice(body.tool_choice)) return true;
+  if (isActiveToolChoice(body.function_call)) return true;
+  return false;
+}
+
 export function decidePolicy(
   body: ChatRequest,
   temperatureMax: number,
@@ -40,7 +63,7 @@ export function decidePolicy(
     return { mode: "bypass", reason: "empty_messages", freshness: "stable" };
   }
   if (body.stream === true) return { mode: "bypass", reason: "stream", freshness: "stable" };
-  if (body.tools || body.functions || body.tool_choice || body.function_call) {
+  if (hasActiveTools(body)) {
     return { mode: "bypass", reason: "tools", freshness: "stable" };
   }
   if ((body.n ?? 1) > 1) return { mode: "bypass", reason: "n_gt_1", freshness: "stable" };

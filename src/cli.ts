@@ -230,13 +230,18 @@ async function cmdStatus(): Promise<void> {
       hits_jev: number;
       misses: number;
       hit_rate: number;
+      hit_rate_eligible?: number;
+      bypass_share?: number;
       net_saved_usd: number;
     };
     const hits = (s.hits_exact || 0) + (s.hits_jev || 0);
     console.log(`  requests  ${s.requests ?? 0}`);
     console.log(`  hits      ${hits}  (exact ${s.hits_exact ?? 0} · intent ${s.hits_jev ?? 0})`);
     console.log(`  misses    ${s.misses ?? 0}`);
-    console.log(`  hit rate  ${((s.hit_rate ?? 0) * 100).toFixed(1)}%`);
+    const overall = ((s.hit_rate ?? 0) * 100).toFixed(1);
+    const eligible =
+      s.hit_rate_eligible != null ? `${(s.hit_rate_eligible * 100).toFixed(1)}% eligible` : null;
+    console.log(`  hit rate  ${overall}% overall${eligible ? ` · ${eligible}` : ""}`);
     console.log(`  saved     ~${formatUsd(s.net_saved_usd ?? 0)} (est. net)`);
     console.log(`  stats UI  ${base}/stats`);
   } catch (e) {

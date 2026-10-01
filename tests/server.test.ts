@@ -112,6 +112,16 @@ describe("createApp integration", () => {
     expect(r.headers["x-jevcache-reason"]).toBe("tools");
   });
 
+  it("empty tools array does not BYPASS", async () => {
+    const { app } = boot(tmpCfg());
+    const r = await chat(app, {
+      tools: [],
+      messages: [{ role: "user", content: "no tools attached" }],
+    });
+    expect(r.headers["x-jevcache"]).not.toBe("BYPASS");
+    expect(["MISS", "HIT"]).toContain(r.headers["x-jevcache"]);
+  });
+
   it("fail-open: adjudicator error → MISS, upstream still runs", async () => {
     const failing: IntentAdjudicator = {
       name: "fail",

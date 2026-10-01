@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.2 — 2026-10-01
+- **Empty `tools: []` / `functions: []`:** no longer false-bypass; only non-empty tool defs or active `tool_choice` / `function_call` (not `"none"`) bypass. `toolsHash` treats empty arrays like omit.
+- **Stats:** `hit_rate_eligible` (hits / hits+misses) and `bypass_share` alongside overall `hit_rate`. `/stats` and `jevcache status` show both.
+- **Candidate propose:** `CANDIDATE_PROPOSE=hybrid` (default) — recency floor + Jaccard fill over `RECENT_N` before the adjudicator; `=recency` restores legacy newest-K. Similarity still never admits.
+
 ## Unreleased
 - **Product name:** MorrowCache. npm package and CLI remain `@kushalicious/jevcache` / `jevcache`. Marketing site in `site/`.
 

@@ -61,8 +61,20 @@ export function systemHash(messages: ChatMessage[] | undefined): string {
   return sha256(stableStringify(systems));
 }
 
+/** Empty tools/functions arrays hash like omit/null so SDKs sending `tools: []` share namespace. */
+function normalizeToolsField(v: unknown): unknown {
+  if (Array.isArray(v) && v.length === 0) return null;
+  return v ?? null;
+}
+
 export function toolsHash(body: ChatRequest): string {
-  return sha256(stableStringify({ tools: body.tools ?? null, tool_choice: body.tool_choice ?? null, functions: body.functions ?? null }));
+  return sha256(
+    stableStringify({
+      tools: normalizeToolsField(body.tools),
+      tool_choice: body.tool_choice ?? null,
+      functions: normalizeToolsField(body.functions),
+    }),
+  );
 }
 
 export function normalizeContent(content: unknown): string {

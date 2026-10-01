@@ -50,10 +50,13 @@ function percentile(arr: number[], p: number): number | null {
 
 export function summarize(stats: Stats) {
   const hits = stats.hits_exact + stats.hits_jev;
+  const eligible = hits + stats.misses;
   const denom = stats.requests || 1;
   return {
     ...stats,
     hit_rate: hits / denom,
+    hit_rate_eligible: eligible > 0 ? hits / eligible : 0,
+    bypass_share: stats.bypasses / denom,
     p50_hit_ms: percentile(stats.latency_hit_ms, 50),
     p95_hit_ms: percentile(stats.latency_hit_ms, 95),
     p50_miss_ms: percentile(stats.latency_miss_ms, 50),

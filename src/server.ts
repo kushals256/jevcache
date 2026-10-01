@@ -17,7 +17,7 @@ import { SingleFlight } from "./singleflight.js";
 import { createAdjudicator, adjudicatorReady, resolveAdjudicatorKind } from "./adjudicator/index.js";
 import type { IntentAdjudicator } from "./adjudicator/types.js";
 import {
-  recentCandidates,
+  proposeCandidates,
   entryIdForChoice,
   maxCandidateAgeMs,
   type RankedCandidate,
@@ -169,7 +169,8 @@ h1{font-size:1.4rem} .grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem
 <h1>MorrowCache</h1>
 <p class="muted">Routers pick a model. MorrowCache decides whether to call one. Estimates only.</p>
 <div class="grid">
-<div class="card"><div class="muted">Hit rate</div><div class="big">${(s.hit_rate * 100).toFixed(1)}%</div></div>
+<div class="card"><div class="muted">Hit rate (overall)</div><div class="big">${(s.hit_rate * 100).toFixed(1)}%</div>
+<div class="muted" style="margin-top:.35rem">Eligible (excl. bypass) ${(s.hit_rate_eligible * 100).toFixed(1)}% · bypass share ${(s.bypass_share * 100).toFixed(1)}%</div></div>
 <div class="card"><div class="muted">Est. net saved</div><div class="big">$${(s.net_saved_usd).toFixed(4)}</div></div>
 <div class="card"><div class="muted">Hits exact / intent</div><div class="big">${s.hits_exact} / ${s.hits_jev}</div></div>
 <div class="card"><div class="muted">Miss / bypass</div><div class="big">${s.misses} / ${s.bypasses}</div></div>
@@ -317,7 +318,14 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
       }
 
       if (policy.mode === "full" && adjReady) {
-        const cands: RankedCandidate[] = recentCandidates(store, ns, cfg.candidateK, key, {
+        const cands: RankedCandidate[] = proposeCandidates({
+          store,
+          namespace: ns,
+          newText: userText,
+          k: cfg.candidateK,
+          poolN: cfg.recentN,
+          excludeExactKey: key,
+          strategy: cfg.candidatePropose,
           maxAgeMs: cfg.freshnessMode === "on" ? maxAgeMs : undefined,
         });
         if (cands.length) {

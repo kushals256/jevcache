@@ -75,7 +75,7 @@ See [`results/eval.json`](./results/eval.json). **Published honest number:** on 
 ### When **not** to use
 
 - Personalized / secret questions (“what’s my balance”)
-- Live tool-calling / side-effecting agents (bypassed when `tools` present)
+- Live tool-calling / side-effecting agents (bypassed when non-empty `tools` / tool history are present)
 - Multi-tenant cloud without `X-Jevcache-Tenant` (and understand local SQLite retains answers)
 - Expecting streaming cache HITs (stream is bypass in v0)
 
@@ -188,9 +188,9 @@ See [`examples/openai_sdk.mjs`](./examples/openai_sdk.mjs).
 ## How it works
 
 ```text
-request → policy (bypass stream/tools/…)
+request → policy (bypass stream / non-empty tools / …)
        → exact SHA cache?
-       → recent candidates + IntentAdjudicator (default: Jev)?
+       → propose candidates (hybrid or recency) + IntentAdjudicator (default: Jev)?
        → HIT  → return cached answer
        → MISS → call upstream → store → return
 ```
@@ -290,7 +290,7 @@ Optional env:
 
 Do not set `ADJUDICATOR=jev` and point `ADJUDICATOR_URL` at a System One host — **kind selects the client**.
 
-**Ops tips:** Unset `HTTP_PROXY` / `HTTPS_PROXY` when using localhost adjudicators (Node `fetch` can be hijacked). Kev is often single-request — expect higher latency under parallel paraphrases; the proxy still **fail-opens** on timeout. Keep `CANDIDATE_K` small (default 5; soft-capped to 7 for System One choice).
+**Ops tips:** Unset `HTTP_PROXY` / `HTTPS_PROXY` when using localhost adjudicators (Node `fetch` can be hijacked). Kev is often single-request — expect higher latency under parallel paraphrases; the proxy still **fail-opens** on timeout. Keep `CANDIDATE_K` small (default 5; soft-capped to 7 for System One choice). `CANDIDATE_PROPOSE=hybrid` (default) shortlists over `RECENT_N` with a recency floor + Jaccard fill before the adjudicator; set `=recency` to restore newest-K only. Empty `tools: []` is cacheable; non-empty tools still bypass. `/stats` reports overall `hit_rate` and `hit_rate_eligible` (excl. bypasses).
 
 `EMBEDDING_MODE` does **not** produce semantic HITs alone (only the adjudicator may admit).
 

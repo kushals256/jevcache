@@ -10,6 +10,12 @@ export type Config = {
   intentThreshold: number;
   candidateK: number;
   recentN: number;
+  /**
+   * Candidate shortlist strategy for the adjudicator.
+   * hybrid = recency floor + Jaccard fill over RECENT_N; recency = legacy newest-K.
+   * Env: CANDIDATE_PROPOSE. Similarity never admits — IntentAdjudicator does.
+   */
+  candidatePropose: "hybrid" | "recency";
   maxStateChars: number;
   temperatureMax: number;
   ttlSeconds: number;
@@ -79,6 +85,8 @@ export function loadConfig(): Config {
     intentThreshold: num("INTENT_THRESHOLD", 0.85),
     candidateK: num("CANDIDATE_K", 5),
     recentN: num("RECENT_N", 64),
+    candidatePropose:
+      env("CANDIDATE_PROPOSE", "hybrid").toLowerCase() === "recency" ? "recency" : "hybrid",
     maxStateChars: num("MAX_DIFF_CHARS_TO_JEV", 12000),
     temperatureMax: num("TEMPERATURE_MAX", 0.3),
     ttlSeconds,
