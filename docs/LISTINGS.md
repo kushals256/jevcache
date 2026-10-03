@@ -10,4 +10,4 @@ Process: open a PR / edit against the Awesome Jev (or jevlist) entry for 2.0.0. 
 
 ## Portfolio
 
-`_portfolio-deploy` copy updated for 0.3.0; redeploy with `Deploy-Portfolio.command` when ready.
+The marketing site is on hold and was not updated for 2.0. Do not redeploy it until that copy is rewritten.

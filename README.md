@@ -211,6 +211,21 @@ request → policy (bypass live / forced tool choice / audio / logprobs / …)
 
 **Why is the first call always a MISS?** The cache is empty for that question — pay once, store the answer, then paraphrases can HIT.
 
+### Headers
+
+| Header | Meaning |
+| --- | --- |
+| `X-Jevcache` | `HIT`, `MISS`, or `BYPASS` |
+| `X-Jevcache-Tier` | `exact`, `jev`, `turn_exact`, or `turn_jev`. FAQ (no prior) stays `exact` / `jev` |
+| `X-Jevcache-Reason` | Why it missed or bypassed: `tool_calls`, `freshness_stale`, `freshness_live`, `tool_choice_forced`, `logprobs`, `audio`, `stream` (only if `TURN_CACHE=off`), … |
+| `X-Jevcache-Job-Id` | Request header. Optional job label. Not authentication |
+| `X-Jevcache-Bypass: 1` | Skip the cache and call upstream |
+| `X-Jevcache-Tenant` | Isolate caches. Not replaced by Job-Id |
+
+`/v1/responses` returns **501**. Use `/v1/chat/completions`.
+
+Still bypassed even with turn cache on: live freshness, multimodal input, audio, `logprobs`, forced `tool_choice`, `n>1`, and requests with no user message.
+
 ---
 
 ## CLI
@@ -247,7 +262,7 @@ docker run --rm -p 8080:8080 \
   ghcr.io/kushals256/jevcache:latest
 ```
 
-Or: `docker compose up` (single service).
+Or: `docker compose up` (single service). `:latest` is 2.0. Pin `ghcr.io/kushals256/jevcache:2.0.0` or `@kushalicious/jevcache@2.0.0` if you do not want a later tag to move you. `TURN_CACHE=off` is the in-place rollback.
 
 ---
 

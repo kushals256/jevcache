@@ -20,6 +20,8 @@ Live page with one-click copy: [morrowcache.vercel.app/agent-setup](https://morr
 
 Default proxy port: **8080** (`http://127.0.0.1:8080/v1`).
 
+**2.0 in one pass:** final text for the same question or the same job can HIT. A later stream of that answer can HIT. `tool_calls` never HIT. `TURN_CACHE=off` restores the old bypass. `X-Jevcache-Job-Id` is optional and is not a tenant. `/v1/responses` is 501.
+
 ---
 
 ## Agent prompt (copy all)

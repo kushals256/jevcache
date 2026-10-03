@@ -6,7 +6,7 @@ Please open a GitHub Security Advisory on this repository, or email the maintain
 ## Scope
 - Do not store real production secrets in cache without understanding local disk retention (`TTL_SECONDS`, class TTLs under freshness mode, `MAX_ENTRIES`).
 - Semantic tier sends truncated, **redacted** prompt text to the configured adjudicator: OpenRouter Decisions (default Jev) or a **local/self-hosted System One** URL (`ADJUDICATOR=kev|laya|…`). Redaction is best-effort — treat the cache DB as sensitive. Local backends still receive prompt text on loopback; trust the host.
-- Never expose `/stats` or `/admin/*` on a public bind without `JEVCACHE_ADMIN_TOKEN`.
+- Never expose `/stats`, `/receipt`, or `/admin/*` on a public bind without `JEVCACHE_ADMIN_TOKEN`. `/receipt` uses the same lock as `/stats`.
 - MorrowCache 2.0 may store **final assistant text** for requests that include a tools schema or tool-role history. It never stores or replays `tool_calls` / `function_call` responses. `X-Jevcache-Job-Id` is a cache grouping key, not authentication and not a tenant boundary.
 - Trust path: client → proxy → SQLite on disk; adjudicator receives last-user text only; upstream sees the full body on a miss. A hit does not call upstream.
 - **Single-node SQLite** — one process, one volume. Multi-instance against the same file is unsupported.

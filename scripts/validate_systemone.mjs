@@ -1,5 +1,5 @@
 /**
- * End-to-end validation for 0.3.0 System One path (no real Kev required).
+ * End-to-end validation for the System One path (no real Kev required).
  * Run: node --experimental-sqlite scripts/validate_systemone.mjs
  */
 import http from "node:http";
@@ -54,7 +54,7 @@ async function chat(app, content) {
   };
 }
 
-console.log("jevcache 0.3.0 validation\n");
+console.log("jevcache System One validation\n");
 
 console.log("1. Factory / ready gate");
 {

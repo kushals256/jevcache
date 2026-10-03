@@ -68,10 +68,10 @@ Alt text for upload: `Same-intent cache: 2817ms miss → 423ms hit at intent 0.9
 **Body:** Attach `demo-launch-story.mp4` or `demo-launch-hook.gif`. Mention fail-open, offline Jaccard FPR 0.49 honesty, and that 2.0 can hit on final text including a later stream. Never claim tool-call replay or guaranteed savings. Point `baseURL`, keep your model. Package `@kushalicious/jevcache`.
 
 ## Awesome Jev / jevlist one-liner
-> `@kushalicious/jevcache` — local OpenAI proxy that skips chat completions when TypeSafe Jev (or local Kev/Laya System One) says same intent (fail-open, freshness-aware).
+> `@kushalicious/jevcache` (MorrowCache 2.0) — local OpenAI proxy that skips the model on same-job final answers (same-intent admit, fail-open, never replays tool_calls).
 
 ## Do not claim
 - Guaranteed 0 false hits
 - Unmeasured dollar amounts
 - That local Kev/Laya accuracy matches cloud Jev (operator-tuned)
-- “Works with every model / Anthropic-native / streaming cache”
+- “Works with every model” / Anthropic-native / replaying tool calls / guaranteed savings

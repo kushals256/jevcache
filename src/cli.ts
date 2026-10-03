@@ -57,7 +57,7 @@ function hasFlag(name: string): boolean {
 }
 
 function printHelp(): void {
-  console.log(`MorrowCache (jevcache) — skip expensive chat calls when same intent is admitted
+  console.log(`MorrowCache 2.0 (jevcache) — skip the model on same-intent paraphrases and same-job final text. Never replays tool_calls.
 
 Usage:
   jevcache              Start the proxy (default)
@@ -84,6 +84,8 @@ Env:
   JEVCACHE_DEMO=1       Same as --demo
   JEVCACHE_QUIET=1      Hide per-HIT / MISS console lines
   JEVCACHE_NO_COLOR=1   Disable TTY colors
+  TURN_CACHE=off        Restore 1.x bypass of stream, tools, and tool history
+  JOB_CROSS_PRIOR=on    Let Job-Id intent-hit across different priors (off by default)
 `);
 }
 

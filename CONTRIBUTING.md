@@ -27,7 +27,10 @@ MOCK_JEV=1 MOCK_UPSTREAM=1 npm start -- --demo
 - Package name stays `@kushalicious/jevcache` — no rename / unpublish games.
 - New adjudicator backends: implement `IntentAdjudicator`, register in `src/adjudicator/factory.ts`, document when `jevcache doctor --live` passes (offline eval stays mock/OpenRouter).
 - Don’t commit `.env`, keys, or local `data/`.
-- Add or update tests when you touch fingerprint / store / server / adjudicator paths.
+- Add or update tests when you touch fingerprint / store / server / adjudicator / stream paths.
+- Never store or HIT-replay a completion that contains `tool_calls` or legacy `function_call`.
+- Intent hits must stay inside one turn namespace. Different priors must not share a jev hit unless `JOB_CROSS_PRIOR=on`.
+- `npm test` must pass with mocks only. Do not require live API keys.
 
 ## Issues
 

@@ -573,7 +573,7 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
 
   // Unsupported OpenAI surfaces
   app.all("/v1/responses", (c) =>
-    c.json({ error: { message: "Responses API unsupported in jevcache v0; use /v1/chat/completions" } }, 501),
+    c.json({ error: { message: "Responses API is not supported; use /v1/chat/completions" } }, 501),
   );
 
   return {
