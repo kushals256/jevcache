@@ -326,6 +326,15 @@ async function doctor(): Promise<void> {
   console.log(`  UPSTREAM_API_KEY    ${hasUp ? mark(true) : mark(false) + " (needed for chat)"}`);
   console.log(`  cwd                 ${process.cwd()}`);
   console.log(`  Node                ${process.version}`);
+  console.log(`  TURN_CACHE          ${cfg.turnCache ? "on" : "off"}`);
+  if (cfg.jobCrossPrior) {
+    console.log(`  ${c.yellow}warn${c.reset}                JOB_CROSS_PRIOR=on widens intent hits across priors`);
+  }
+  const loopback = cfg.host === "127.0.0.1" || cfg.host === "localhost" || cfg.host === "::1";
+  if ((cfg.mockJev || cfg.mockUpstream) && !loopback) {
+    console.error("  fail                MOCK_* with a public HOST");
+    process.exitCode = 1;
+  }
 
   const proxyEnv = process.env.HTTP_PROXY || process.env.HTTPS_PROXY || process.env.ALL_PROXY;
   if (proxyEnv && isSystemOneKind(kind)) {

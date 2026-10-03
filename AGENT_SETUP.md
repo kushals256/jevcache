@@ -55,7 +55,7 @@ Do ALL of the following without asking me to run terminal commands myself (you r
 8. Add SETUP_JEVCACHE.md with start command, ADJUDICATOR kind, baseURL, and /stats link.
 9. Optionally add .cursor/rules/jevcache.mdc so future agents keep that baseURL.
 10. Prove it: paraphrased prompts → expect MISS then HIT (or run start --demo). Show X-Jevcache headers or /stats.
-    Do not expect HIT for streaming or tools requests (bypass by design).
+    Final text may HIT, including a later stream of the same answer. tool_calls are never stored. Optional header X-Jevcache-Job-Id groups a job without crossing priors unless JOB_CROSS_PRIOR=on. Chat Completions only; /v1/responses is 501.
 
 Do not commit secrets. If install fails, try the next method (npx → docker → clone).
 

@@ -5,14 +5,21 @@ import type { Config } from "./config.js";
 import {
   buildNamespace,
   exactKey,
+  isTurnTier,
   lastUserText,
+  normalizeJobId,
+  priorDigest,
+  priorEndsWithPendingToolCalls,
   systemHash,
   temperatureBucket,
   toolsHash,
+  turnNamespace,
   type ChatRequest,
 } from "./fingerprint.js";
+import { isStorableCompletion } from "./response_guard.js";
+import { assembleSseText, synthesizeHitSse } from "./stream_cache.js";
 import { decidePolicy } from "./policy.js";
-import { CacheStore } from "./store/sqlite.js";
+import { CacheStore, type CacheEntry } from "./store/sqlite.js";
 import { SingleFlight } from "./singleflight.js";
 import { createAdjudicator, adjudicatorReady, resolveAdjudicatorKind } from "./adjudicator/index.js";
 import type { IntentAdjudicator } from "./adjudicator/types.js";
@@ -32,7 +39,7 @@ import {
   type Stats,
 } from "./stats.js";
 import { RateLimiter } from "./rate_limit.js";
-import { preview } from "./redact.js";
+import { preview, redactSecrets } from "./redact.js";
 import {
   classifyFreshness,
   isFreshEnough,
@@ -42,7 +49,7 @@ import {
 } from "./freshness.js";
 
 export type CacheHitEvent = {
-  tier: "exact" | "jev";
+  tier: "exact" | "jev" | "turn_exact" | "turn_jev";
   savedUsd: number;
   totalSavedUsd: number;
   preview: string;
@@ -95,7 +102,7 @@ export function createApp(cfg: Config, hooks: AppHooks = {}, deps: AppDeps = {})
   const app = new Hono();
 
   const emitHit = (
-    tier: "exact" | "jev",
+    tier: "exact" | "jev" | "turn_exact" | "turn_jev",
     savedUsd: number,
     textPreview: string,
     intent?: number,
@@ -115,7 +122,7 @@ export function createApp(cfg: Config, hooks: AppHooks = {}, deps: AppDeps = {})
       c.header("Access-Control-Allow-Origin", cfg.corsOrigin);
       c.header(
         "Access-Control-Allow-Headers",
-        "Authorization, Content-Type, X-Jevcache-Admin, X-Jevcache-Tenant, X-Jevcache-Bypass, X-Jevcache-Max-Age-Seconds",
+        "Authorization, Content-Type, X-Jevcache-Admin, X-Jevcache-Tenant, X-Jevcache-Bypass, X-Jevcache-Max-Age-Seconds, X-Jevcache-Job-Id",
       );
       c.header(
         "Access-Control-Expose-Headers",
@@ -130,6 +137,7 @@ export function createApp(cfg: Config, hooks: AppHooks = {}, deps: AppDeps = {})
   app.get("/healthz", (c) =>
     c.json({
       ok: true,
+      turn_cache: cfg.turnCache,
       adjudicator: {
         name: adjudicator.name,
         kind: adjKind,
@@ -225,20 +233,65 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
     return c.json(r.body);
   });
 
+  app.get("/receipt", (c) => {
+    if (!requireAdmin(c, cfg)) return c.json({ error: "unauthorized" }, 401);
+    const s = summarize(stats);
+    const payload = {
+      started_at: s.started_at,
+      requests: s.requests,
+      hits_exact: s.hits_exact,
+      hits_jev: s.hits_jev,
+      hits_turn_exact: s.hits_turn_exact,
+      hits_turn_jev: s.hits_turn_jev,
+      tool_calls_bypass: s.tool_calls_bypass,
+      stream_hits: s.stream_hits,
+      saved_usd: s.saved_usd,
+      turn_cache: cfg.turnCache,
+    };
+    if (c.req.query("format") === "md") {
+      const md = [
+        "# MorrowCache receipt",
+        `- requests: ${payload.requests}`,
+        `- hits exact / jev: ${payload.hits_exact} / ${payload.hits_jev}`,
+        `- turn exact / jev: ${payload.hits_turn_exact} / ${payload.hits_turn_jev}`,
+        `- tool_calls not stored: ${payload.tool_calls_bypass}`,
+        `- stream hits: ${payload.stream_hits}`,
+        `- est saved USD: ${payload.saved_usd}`,
+        `- turn_cache: ${payload.turn_cache}`,
+      ].join("\n");
+      return c.text(md);
+    }
+    return c.json(payload);
+  });
+
   app.post("/v1/chat/completions", async (c) => {
     const ip = c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || "local";
     if (!limiter.allow(ip)) return c.json({ error: { message: "rate_limited" } }, 429);
+
+    const cl = Number(c.req.header("content-length") || 0);
+    if (Number.isFinite(cl) && cl > cfg.requestMaxBytes) {
+      return c.json({ error: { message: "request_too_large" } }, 413);
+    }
 
     stats.requests += 1;
     const t0 = Date.now();
     let body: ChatRequest;
     try {
-      body = await c.req.json();
+      body = (await c.req.json()) as ChatRequest;
     } catch {
       return c.json({ error: { message: "invalid_json" } }, 400);
     }
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return c.json({ error: { message: "invalid_json" } }, 400);
+    }
+    if (JSON.stringify(body).length > cfg.requestMaxBytes) {
+      return c.json({ error: { message: "request_too_large" } }, 413);
+    }
     if (!body.messages || !Array.isArray(body.messages) || body.messages.length === 0) {
       return c.json({ error: { message: "messages required" } }, 400);
+    }
+    if (body.messages.some((m) => !m || typeof m !== "object")) {
+      return c.json({ error: { message: "invalid_messages" } }, 400);
     }
 
     const auth = c.req.header("Authorization");
@@ -248,7 +301,10 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
       return bypassUpstream(c, cfg, body, stats, t0, "client_bypass", upstreamKey);
     }
 
-    const policy = decidePolicy(body, cfg.temperatureMax, { freshnessMode: cfg.freshnessMode });
+    const policy = decidePolicy(body, cfg.temperatureMax, {
+      freshnessMode: cfg.freshnessMode,
+      turnCache: cfg.turnCache,
+    });
     const ttls = freshnessTtls(cfg);
     if (!upstreamKey && policy.mode === "bypass") {
       return c.json({ error: { message: "missing upstream API key" } }, 401);
@@ -278,24 +334,29 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
 
     const tenant = tenantFromAuth(auth, c.req.header("X-Jevcache-Tenant"));
     const model = String(body.model ?? "unknown");
-    const ns = buildNamespace({
+    const baseNs = buildNamespace({
       tenant,
       model,
       systemHash: systemHash(body.messages),
       toolsHash: toolsHash(body),
       temperatureBucket: temperatureBucket(body.temperature, cfg.temperatureMax),
     });
+    const digested = priorDigest(body.messages, {
+      maxMessages: cfg.priorDigestMaxMessages,
+      maxBytes: cfg.priorDigestMaxBytes,
+    });
+    const job = normalizeJobId(c.req.header("X-Jevcache-Job-Id"));
+    const ns = turnNamespace(baseNs, digested.digest, job, { crossPrior: cfg.jobCrossPrior });
     const key = exactKey(ns, body);
+    const turnTier = isTurnTier(digested.priorEmpty);
+    const skipJev = priorEndsWithPendingToolCalls(body.messages, cfg.priorDigestMaxMessages);
 
-    const exact = store.getByExactKey(key);
+    const exactRaw = store.getByExactKey(key);
+    const exact = exactRaw && completionJsonStorable(exactRaw.response_json) ? exactRaw : null;
+    if (exactRaw && !exact) store.delete(exactRaw.id);
     let missReason: string | undefined;
     if (exact && entryFreshForRequest(exact.created_at, reqClass, ttls, cfg, headerMaxAge)) {
-      stats.hits_exact += 1;
-      stats.saved_usd += exact.est_cost_usd;
-      pushLatency(stats.latency_hit_ms, Date.now() - t0);
-      emitHit("exact", exact.est_cost_usd, preview(exact.user_text));
-      applyHeaders(c, hitHeaders("HIT", "exact", exact.est_cost_usd, exact.id, undefined, reqClass));
-      return c.json(hitBody(exact.response_json, exact.id));
+      return serveHit(c, cfg, stats, hooks, emitHit, exact, "exact", undefined, reqClass, t0, body.stream === true, turnTier, ns, job);
     }
     if (exact && cfg.freshnessMode === "on") {
       stats.freshness_rejects += 1;
@@ -317,7 +378,7 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
         missReason = missReason || "freshness_stale";
       }
 
-      if (policy.mode === "full" && adjReady) {
+      if (policy.mode === "full" && adjReady && !skipJev) {
         const cands: RankedCandidate[] = proposeCandidates({
           store,
           namespace: ns,
@@ -347,7 +408,9 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
             stats.jev_errors += 1;
           } else if (admit.admit && !cfg.shadow) {
             const eid = entryIdForChoice(cands, admit.best);
-            const entry = eid ? store.getById(eid) : null;
+            const loaded = eid ? store.getById(eid) : null;
+            const entry = loaded && completionJsonStorable(loaded.response_json) ? loaded : null;
+            if (loaded && !entry) store.delete(loaded.id);
             if (entry && entryFreshForRequest(entry.created_at, reqClass, ttls, cfg, headerMaxAge)) {
               return { kind: "jev" as const, entry, noul: admit.noul };
             }
@@ -374,72 +437,92 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
         // semantic disabled — exact only path continues to upstream
       }
 
+      if (body.stream === true) {
+        const streamed = await collectStream(cfg, body, upstreamKey, c.req.raw.signal);
+        if (!streamed.ok) {
+          return { kind: "upstream_error" as const, up: streamed.up };
+        }
+        const assembled = assembleSseText(streamed.sse, cfg.streamCacheMaxBytes);
+        if (assembled.status === "incomplete") {
+          if (assembled.reason === "stream_too_large") stats.stream_too_large += 1;
+          else stats.stream_incomplete += 1;
+          return {
+            kind: "not_stored" as const,
+            body: { error: { message: assembled.reason } },
+            reason: assembled.reason,
+            est: 0,
+            sse: streamed.sse,
+          };
+        }
+        if (assembled.status !== "stored_ready") {
+          if (assembled.reason === "tool_calls") stats.tool_calls_bypass += 1;
+          return {
+            kind: "not_stored" as const,
+            body: assembled.status === "not_storable" ? { error: { message: assembled.reason } } : {},
+            reason: assembled.reason,
+            est: 0,
+            sse: streamed.sse,
+          };
+        }
+        const stored = tryStore(store, cfg, {
+          ns,
+          key,
+          userText,
+          model,
+          completion: assembled.completion,
+          classText: userText,
+        });
+        if (!stored.ok) {
+          return { kind: "not_stored" as const, body: assembled.completion, reason: stored.reason, est: stored.est, sse: streamed.sse };
+        }
+        return { kind: "miss" as const, entry: stored.entry, est: stored.est, sse: streamed.sse };
+      }
+
       const up = await forwardChatCompletions({
         baseUrl: cfg.upstreamBaseUrl,
         apiKey: upstreamKey,
         body,
         timeoutMs: cfg.upstreamTimeoutMs,
+        signal: c.req.raw.signal,
+        mock: cfg.mockUpstream,
       });
       if (!up.ok) {
         return { kind: "upstream_error" as const, up };
       }
-      const usage = usageFromBody(up.body);
-      const est = estimateCostUsd(model, usage.prompt, usage.completion);
-      const storeClass =
-        cfg.freshnessMode === "off" ? ("stable" as const) : classifyFreshness(userText);
-      const now = Date.now();
-      const ttlMs =
-        cfg.freshnessMode === "off"
-          ? cfg.ttlSeconds * 1000
-          : ttlMsForClass(storeClass, ttls, cfg.freshnessJitterPct);
-      // live should not store (bypassed above); if somehow here, expire immediately
-      const expires_at = ttlMs <= 0 ? now : now + ttlMs;
-      const entry = store.upsert(
-        {
-          namespace: ns,
-          exact_key: key,
-          user_text: userText,
-          response_json: JSON.stringify(up.body),
-          model,
-          prompt_tokens: usage.prompt,
-          completion_tokens: usage.completion,
-          est_cost_usd: est,
-          created_at: now,
-          expires_at,
-          freshness_class: storeClass,
-          as_of: now,
-        },
-        cfg.maxEntries,
-      );
-      return { kind: "miss" as const, entry, est };
+      const stored = tryStore(store, cfg, {
+        ns,
+        key,
+        userText,
+        model,
+        completion: up.body,
+        classText: userText,
+      });
+      if (!stored.ok) {
+        if (stored.reason === "tool_calls") stats.tool_calls_bypass += 1;
+        return { kind: "not_stored" as const, body: up.body, reason: stored.reason, est: stored.est };
+      }
+      return { kind: "miss" as const, entry: stored.entry, est: stored.est };
     });
 
     if (shared) stats.coalesced += 1;
 
     if (value.kind === "exact" || value.kind === "jev") {
-      if (value.kind === "exact") stats.hits_exact += 1;
-      else stats.hits_jev += 1;
-      stats.saved_usd += value.entry.est_cost_usd;
-      pushLatency(stats.latency_hit_ms, Date.now() - t0);
-      const tier = value.kind === "exact" ? "exact" : "jev";
-      emitHit(
-        tier,
-        value.entry.est_cost_usd,
-        preview(value.entry.user_text),
-        value.kind === "jev" ? value.noul : undefined,
-      );
-      applyHeaders(
+      return serveHit(
         c,
-        hitHeaders(
-          "HIT",
-          tier,
-          value.entry.est_cost_usd,
-          value.entry.id,
-          value.kind === "jev" ? value.noul : undefined,
-          reqClass,
-        ),
+        cfg,
+        stats,
+        hooks,
+        emitHit,
+        value.entry,
+        value.kind,
+        value.kind === "jev" ? value.noul : undefined,
+        reqClass,
+        t0,
+        body.stream === true,
+        turnTier,
+        ns,
+        job,
       );
-      return c.json(hitBody(value.entry.response_json, value.entry.id));
     }
 
     if (value.kind === "upstream_error") {
@@ -448,18 +531,43 @@ ${s.last_hits.map((h) => `<tr><td>${h.tier}</td><td>${h.intent?.toFixed?.(2) ?? 
       return c.json(value.up.body, value.up.status as 502);
     }
 
+    if (value.kind === "not_stored") {
+      stats.misses += 1;
+      if (!shared) stats.upstream_spend_usd += value.est;
+      pushLatency(stats.latency_miss_ms, Date.now() - t0);
+      const reason = value.reason || missReason;
+      if (body.stream === true && value.sse) {
+        return sseResponse(value.sse, hitHeaders("MISS", "none", 0, "", undefined, reqClass, reason));
+      }
+      applyHeaders(c, hitHeaders("MISS", "none", 0, "", undefined, reqClass, reason));
+      return c.json(value.body);
+    }
+
+    if (shared && body.stream === true) {
+      const parsed = JSON.parse(value.entry.response_json) as Record<string, unknown>;
+      stats.stream_hits += 1;
+      const tier = turnTier ? "turn_exact" : "exact";
+      countHit(stats, tier);
+      stats.saved_usd += value.entry.est_cost_usd;
+      return sseResponse(
+        synthesizeHitSse(parsed, { model, id: hitId(value.entry.id) }),
+        hitHeaders("HIT", tier, value.entry.est_cost_usd, value.entry.id, undefined, reqClass),
+      );
+    }
+
     stats.misses += 1;
-    stats.upstream_spend_usd += value.est;
+    if (!shared) stats.upstream_spend_usd += value.est;
     pushLatency(stats.latency_miss_ms, Date.now() - t0);
-    const parsed = JSON.parse(value.entry.response_json);
+    const parsed = JSON.parse(value.entry.response_json) as Record<string, unknown>;
     hooks.onMiss?.({
       spentUsd: value.est,
-      preview: preview(value.entry.user_text),
+      preview: preview(redactSecrets(value.entry.user_text).text),
     });
-    applyHeaders(
-      c,
-      hitHeaders("MISS", "none", 0, value.entry.id, undefined, reqClass, missReason),
-    );
+    if (body.stream === true) {
+      const sse = value.sse ?? synthesizeHitSse(parsed, { model, id: hitId(value.entry.id) });
+      return sseResponse(sse, hitHeaders("MISS", "none", 0, value.entry.id, undefined, reqClass, missReason));
+    }
+    applyHeaders(c, hitHeaders("MISS", "none", 0, value.entry.id, undefined, reqClass, missReason));
     return c.json(parsed);
   });
 
@@ -541,6 +649,182 @@ async function bypassUpstream(
   return c.json(up.body);
 }
 
+
+function completionJsonStorable(responseJson: string): boolean {
+  try {
+    return isStorableCompletion(JSON.parse(responseJson)).ok;
+  } catch {
+    return false;
+  }
+}
+
+function hitId(entryId: string): string {
+  return `chatcmpl-jevcache-${entryId.replace(/-/g, "").slice(0, 24)}`;
+}
+
+function countHit(stats: Stats, tier: "exact" | "jev" | "turn_exact" | "turn_jev"): void {
+  if (tier === "turn_exact") {
+    stats.hits_turn_exact += 1;
+    stats.hits_exact += 1;
+  } else if (tier === "turn_jev") {
+    stats.hits_turn_jev += 1;
+    stats.hits_jev += 1;
+  } else if (tier === "exact") stats.hits_exact += 1;
+  else stats.hits_jev += 1;
+}
+
+function sseResponse(sse: string, headers: Record<string, string>): Response {
+  const h = new Headers(headers);
+  h.set("Content-Type", "text/event-stream");
+  return new Response(sse, { status: 200, headers: h });
+}
+
+function serveHit(
+  c: { header: (k: string, v: string) => void; json: (b: unknown, s?: number) => Response },
+  cfg: Config,
+  stats: Stats,
+  hooks: AppHooks,
+  emitHit: (tier: "exact" | "jev" | "turn_exact" | "turn_jev", saved: number, preview: string, intent?: number) => void,
+  entry: CacheEntry,
+  kind: "exact" | "jev",
+  noul: number | undefined,
+  reqClass: FreshnessClass,
+  t0: number,
+  stream: boolean,
+  turnTier: boolean,
+  ns: string,
+  job: string | null,
+): Response {
+  const tier = turnTier ? (kind === "exact" ? "turn_exact" : "turn_jev") : kind;
+  countHit(stats, tier);
+  if (stream) stats.stream_hits += 1;
+  stats.saved_usd += entry.est_cost_usd;
+  pushLatency(stats.latency_hit_ms, Date.now() - t0);
+  const safePreview = preview(redactSecrets(entry.user_text).text);
+  emitHit(tier, entry.est_cost_usd, safePreview, noul);
+  if ((tier === "turn_exact" || tier === "turn_jev") && Math.random() < cfg.turnHitSampleRate) {
+    stats.turn_hit_samples += 1;
+    console.error(
+      JSON.stringify({
+        at: Date.now(),
+        tier,
+        ns16: ns.slice(0, 16),
+        job,
+        userPreview: safePreview,
+        entryId: entry.id,
+      }),
+    );
+  }
+  const headers = hitHeaders("HIT", tier, entry.est_cost_usd, entry.id, noul, reqClass);
+  const parsed = hitBody(entry.response_json, entry.id);
+  if (stream) return sseResponse(synthesizeHitSse(parsed, { model: entry.model, id: String(parsed.id) }), headers);
+  applyHeaders(c, headers);
+  return c.json(parsed);
+}
+
+function tryStore(
+  store: CacheStore,
+  cfg: Config,
+  input: {
+    ns: string;
+    key: string;
+    userText: string;
+    model: string;
+    completion: Record<string, unknown>;
+    classText: string;
+  },
+): { ok: true; entry: CacheEntry; est: number } | { ok: false; reason: string; est: number } {
+  const check = isStorableCompletion(input.completion);
+  const usage = usageFromBody(input.completion);
+  const est = estimateCostUsd(input.model, usage.prompt, usage.completion);
+  if (!check.ok) return { ok: false, reason: check.reason, est };
+  const storeClass = cfg.freshnessMode === "off" ? "stable" : classifyFreshness(input.classText);
+  const now = Date.now();
+  const ttls = freshnessTtls(cfg);
+  const ttlMs =
+    cfg.freshnessMode === "off" ? cfg.ttlSeconds * 1000 : ttlMsForClass(storeClass, ttls, cfg.freshnessJitterPct);
+  if (ttlMs <= 0) return { ok: false, reason: "ttl", est };
+  try {
+    const entry = store.upsert(
+      {
+        namespace: input.ns,
+        exact_key: input.key,
+        user_text: input.userText,
+        response_json: JSON.stringify(input.completion),
+        model: input.model,
+        prompt_tokens: usage.prompt,
+        completion_tokens: usage.completion,
+        est_cost_usd: est,
+        created_at: now,
+        expires_at: now + ttlMs,
+        freshness_class: storeClass,
+        as_of: now,
+      },
+      cfg.maxEntries,
+    );
+    return { ok: true, entry, est };
+  } catch {
+    return { ok: false, reason: "store_error", est };
+  }
+}
+
+async function collectStream(
+  cfg: Config,
+  body: ChatRequest,
+  apiKey: string,
+  signal: AbortSignal,
+): Promise<{ ok: true; sse: string } | { ok: false; up: { status: number; body: unknown } }> {
+  if (cfg.mockUpstream || process.env.MOCK_UPSTREAM === "1") {
+    const last = [...(body.messages ?? [])].reverse().find((m) => m.role === "user");
+    const content = typeof last?.content === "string" ? last.content : "ok";
+    const created = Math.floor(Date.now() / 1000);
+    const model = String(body.model ?? "mock");
+    const chunk = {
+      id: "chatcmpl-mock",
+      object: "chat.completion.chunk",
+      created,
+      model,
+      choices: [{ index: 0, delta: { role: "assistant", content: `MOCK_ANSWER:${content}` }, finish_reason: null }],
+    };
+    const stop = {
+      id: "chatcmpl-mock",
+      object: "chat.completion.chunk",
+      created,
+      model,
+      choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+    };
+    const sse = `data: ${JSON.stringify(chunk)}\n\ndata: ${JSON.stringify(stop)}\n\ndata: [DONE]\n\n`;
+    return { ok: true, sse };
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), cfg.upstreamTimeoutMs);
+  const onAbort = () => controller.abort();
+  signal.addEventListener("abort", onAbort);
+  try {
+    const res = await fetch(`${cfg.upstreamBaseUrl}/chat/completions`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const sse = await res.text();
+    if (!res.ok) {
+      let parsed: unknown = sse;
+      try {
+        parsed = JSON.parse(sse);
+      } catch {
+        /* */
+      }
+      return { ok: false, up: { status: res.status, body: parsed } };
+    }
+    return { ok: true, sse };
+  } catch {
+    return { ok: false, up: { status: 502, body: { error: { message: "upstream_error" } } } };
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener("abort", onAbort);
+  }
+}
 
 function bearer(auth: string | undefined): string {
   if (!auth) return "";

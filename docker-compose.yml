@@ -13,6 +13,9 @@ services:
       UPSTREAM_BASE_URL: ${UPSTREAM_BASE_URL:-https://openrouter.ai/api/v1}
       JEVCACHE_ADMIN_TOKEN: ${JEVCACHE_ADMIN_TOKEN:-dev-admin}
       INTENT_THRESHOLD: ${INTENT_THRESHOLD:-0.85}
+      # 2.0 defaults: TURN_CACHE=on. Set off to restore 1.x stream/tools bypass.
+      # TURN_CACHE: ${TURN_CACHE:-on}
+      # JOB_CROSS_PRIOR: ${JOB_CROSS_PRIOR:-off}
       # Optional local System One (host network / sidecar URL):
       # ADJUDICATOR: ${ADJUDICATOR:-jev}
       # ADJUDICATOR_URL: ${ADJUDICATOR_URL:-}

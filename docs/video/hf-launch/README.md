@@ -22,7 +22,7 @@ Double-bill desk: every LLM call prints a charge slip. Same-intent stamp voids t
 
 - Recorded demo: MISS `2817ms` → HIT `423ms` · intent `0.94` · ~`6.7×` (`docs/video/live-summary.json`)
 - Offline Jaccard@0.35 FPR `0.49` · n=103 (`results/eval.json`)
-- Prefer miss over wrong hit · fail-open · streaming/tools bypass
+- Prefer miss over wrong hit · fail-open · final-text hits including a later stream · never replay tool_calls
 
 ## Audio
 

@@ -9,19 +9,42 @@ export async function forwardChatCompletions(opts: {
   body: unknown;
   timeoutMs: number;
   signal?: AbortSignal;
+  mock?: boolean;
 }): Promise<UpstreamResult> {
-  if (process.env.MOCK_UPSTREAM === "1") {
+  if (opts.mock || process.env.MOCK_UPSTREAM === "1") {
     const b = opts.body as { model?: string; messages?: { role: string; content?: unknown }[] };
     const last = [...(b.messages ?? [])].reverse().find((m) => m.role === "user");
     const content = typeof last?.content === "string" ? last.content : "ok";
-    const body = {
-      id: "chatcmpl-mock",
-      object: "chat.completion",
-      created: Math.floor(Date.now() / 1000),
-      model: b.model ?? "mock",
-      choices: [{ index: 0, message: { role: "assistant", content: `MOCK_ANSWER:${content}` }, finish_reason: "stop" }],
-      usage: { prompt_tokens: 12, completion_tokens: 8, total_tokens: 20 },
-    };
+    const forceTools = content.includes("FORCE_TOOL_CALLS");
+    const body = forceTools
+      ? {
+          id: "chatcmpl-mock",
+          object: "chat.completion",
+          created: Math.floor(Date.now() / 1000),
+          model: b.model ?? "mock",
+          choices: [
+            {
+              index: 0,
+              message: {
+                role: "assistant",
+                content: null,
+                tool_calls: [
+                  { id: "call_mock", type: "function", function: { name: "demo", arguments: "{}" } },
+                ],
+              },
+              finish_reason: "tool_calls",
+            },
+          ],
+          usage: { prompt_tokens: 12, completion_tokens: 8, total_tokens: 20 },
+        }
+      : {
+          id: "chatcmpl-mock",
+          object: "chat.completion",
+          created: Math.floor(Date.now() / 1000),
+          model: b.model ?? "mock",
+          choices: [{ index: 0, message: { role: "assistant", content: `MOCK_ANSWER:${content}` }, finish_reason: "stop" }],
+          usage: { prompt_tokens: 12, completion_tokens: 8, total_tokens: 20 },
+        };
     return { ok: true, status: 200, body, raw: JSON.stringify(body) };
   }
 

@@ -46,4 +46,4 @@ Geist Pixel for MorrowCache lockups only. Geist Sans / Mono for UI.
 ## Honest numbers only
 
 2817 / 423 / 6.7× / 0.94 / FPR 0.49 / fail-open
-Do not claim any model / Anthropic-native / streaming cache.
+Do not claim Anthropic-native support, tool-call replay, or guaranteed savings. A streaming hit is allowed only for stored final text.

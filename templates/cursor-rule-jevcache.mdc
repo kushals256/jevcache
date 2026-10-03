@@ -9,4 +9,4 @@ When making OpenAI-compatible chat completion calls in this project, use:
 - `baseURL`: `http://127.0.0.1:8080/v1`
 - API key: `OPENROUTER_API_KEY` or `UPSTREAM_API_KEY` from `.env`
 
-Assume jevcache is running locally (`npx --yes github:kushals256/jevcache` or Docker). Do not commit `.env`. Tool-calling and streaming may bypass the cache by design.
+Assume jevcache is running locally (`npx --yes github:kushals256/jevcache` or Docker). Do not commit `.env`. Final text may HIT, including a later stream. tool_calls are never stored. Chat Completions only; /v1/responses is 501.

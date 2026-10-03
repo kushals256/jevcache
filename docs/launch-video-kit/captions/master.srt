@@ -1,0 +1,67 @@
+1
+00:00:02,200 --> 00:00:03,400
+Same intent. Skip the call.
+
+2
+00:00:03,500 --> 00:00:04,200
+explain merge sort
+
+3
+00:00:04,200 --> 00:00:04,800
+walk me through mergesort
+
+4
+00:00:04,800 --> 00:00:05,400
+how does mergesort work
+
+5
+00:00:05,400 --> 00:00:06,000
+same question, new words
+
+6
+00:00:06,000 --> 00:00:07,000
+Same intent.
+
+7
+00:00:07,100 --> 00:00:08,400
+MISS 2817ms
+
+8
+00:00:08,400 --> 00:00:10,200
+HIT 423ms · 6.7× · intent 0.94
+
+9
+00:00:10,400 --> 00:00:15,000
+Change baseURL. Keep your model.
+
+10
+00:00:15,200 --> 00:00:19,200
+Word overlap lies.
+
+11
+00:00:16,000 --> 00:00:19,200
+Jaccard FPR 0.49 · n=103
+
+12
+00:00:19,800 --> 00:00:23,800
+Stale “latest”? REFUSE.
+
+13
+00:00:21,000 --> 00:00:23,800
+Fail-open when unsure.
+
+14
+00:00:24,200 --> 00:00:28,800
+npx @kushalicious/jevcache@latest
+
+15
+00:00:29,200 --> 00:00:34,800
+Routers pick a model.
+
+16
+00:00:30,400 --> 00:00:34,800
+This decides whether to call one.
+
+17
+00:00:31,600 --> 00:00:34,800
+morrowcache.vercel.app

@@ -1,7 +1,7 @@
 {
   "name": "@kushalicious/jevcache",
-  "version": "0.3.2",
-  "description": "MorrowCache: OpenAI-compatible chat proxy that skips completions when same intent is admitted. Fail-open + freshness-aware. npm: @kushalicious/jevcache.",
+  "version": "2.0.0",
+  "description": "MorrowCache 2.0 Agent Turn Cache: OpenAI-compatible proxy that skips the model on same-job final answers. Fail-open. Never replays tool_calls.",
   "type": "module",
   "bin": {
     "jevcache": "./bin/jevcache.js"
@@ -11,6 +11,7 @@
     "dist",
     ".env.example",
     "README.md",
+    "SECURITY.md",
     "LICENSE"
   ],
   "scripts": {
@@ -44,7 +45,8 @@
     "cache",
     "llm",
     "proxy",
-    "semantic-cache"
+    "semantic-cache",
+    "agent-cache"
   ],
   "dependencies": {
     "@hono/node-server": "^1.14.1",

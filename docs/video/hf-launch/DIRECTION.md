@@ -3,7 +3,7 @@
 ## Story (sourced)
 
 - **What:** Local OpenAI-compatible proxy that skips the chat call when a same-intent adjudicator admits a paraphrase. (README)
-- **How:** Exact hit → same-intent admit (Jev default / Kev / Laya / Laya MLX) → freshness refuse → fail-open. Streaming/tools bypass. (README)
+- **How:** Exact hit → same-intent admit (Jev default / Kev / Laya / Laya MLX) → freshness refuse → fail-open. 2.0 stores final text only, including a later stream. Never replay tool_calls. (README)
 - **Proof:** Recorded demo MISS 2817ms → HIT 423ms · intent 0.94 · ~6.7× (`docs/video/live-summary.json`). Offline Jaccard@0.35 FPR 0.49 n=103 (`results/eval.json`). Prefer miss over wrong hit.
 
 ## Visual concept

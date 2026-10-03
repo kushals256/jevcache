@@ -17,6 +17,13 @@ export type Stats = {
   latency_miss_ms: number[];
   last_hits: { tier: string; preview: string; intent?: number; at: number }[];
   started_at: number;
+  hits_turn_exact: number;
+  hits_turn_jev: number;
+  tool_calls_bypass: number;
+  stream_hits: number;
+  stream_incomplete: number;
+  stream_too_large: number;
+  turn_hit_samples: number;
 };
 
 export function createStats(): Stats {
@@ -38,6 +45,13 @@ export function createStats(): Stats {
     latency_miss_ms: [],
     last_hits: [],
     started_at: Date.now(),
+    hits_turn_exact: 0,
+    hits_turn_jev: 0,
+    tool_calls_bypass: 0,
+    stream_hits: 0,
+    stream_incomplete: 0,
+    stream_too_large: 0,
+    turn_hit_samples: 0,
   };
 }
 
@@ -49,6 +63,7 @@ function percentile(arr: number[], p: number): number | null {
 }
 
 export function summarize(stats: Stats) {
+  // hits_turn_* are subsets of hits_exact / hits_jev. Do not add them again.
   const hits = stats.hits_exact + stats.hits_jev;
   const eligible = hits + stats.misses;
   const denom = stats.requests || 1;
@@ -73,7 +88,7 @@ export function pushLatency(arr: number[], ms: number, cap = 500): void {
 
 export function recordHit(
   stats: Stats,
-  tier: "exact" | "jev",
+  tier: "exact" | "jev" | "turn_exact" | "turn_jev",
   preview: string,
   intent?: number,
 ): void {

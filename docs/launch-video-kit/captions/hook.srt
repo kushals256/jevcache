@@ -1,0 +1,35 @@
+1
+00:00:02,200 --> 00:00:03,400
+Same intent. Skip the call.
+
+2
+00:00:03,500 --> 00:00:04,200
+explain merge sort
+
+3
+00:00:04,200 --> 00:00:04,800
+walk me through mergesort
+
+4
+00:00:04,800 --> 00:00:05,400
+how does mergesort work
+
+5
+00:00:05,400 --> 00:00:06,000
+same question, new words
+
+6
+00:00:06,000 --> 00:00:07,000
+Same intent.
+
+7
+00:00:07,100 --> 00:00:08,400
+MISS 2817ms
+
+8
+00:00:08,400 --> 00:00:10,200
+HIT 423ms · 6.7× · intent 0.94
+
+9
+00:00:10,400 --> 00:00:15,000
+Change baseURL. Keep your model.

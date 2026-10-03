@@ -55,6 +55,15 @@ export type Config = {
   freshnessJevMinAgeMs: number;
   freshnessSampleBypass: number;
   freshnessJitterPct: number;
+  /** Agent turn cache. Off restores 1.x stream/tools/tool_history bypasses. */
+  turnCache: boolean;
+  streamCacheMaxBytes: number;
+  priorDigestMaxMessages: number;
+  priorDigestMaxBytes: number;
+  turnHitSampleRate: number;
+  requestMaxBytes: number;
+  /** When true and a Job-Id is set, drop prior digest from the namespace. */
+  jobCrossPrior: boolean;
 };
 
 function env(name: string, fallback = ""): string {
@@ -114,5 +123,12 @@ export function loadConfig(): Config {
     freshnessJevMinAgeMs: num("FRESHNESS_JEV_MIN_AGE_MS", 300_000),
     freshnessSampleBypass: Math.min(1, Math.max(0, num("FRESHNESS_SAMPLE_BYPASS", 0))),
     freshnessJitterPct: Math.min(0.5, Math.max(0, num("FRESHNESS_TTL_JITTER", 0.1))),
+    turnCache: !["off", "0", "false"].includes(env("TURN_CACHE", "on").toLowerCase()),
+    streamCacheMaxBytes: Math.max(1024, num("STREAM_CACHE_MAX_BYTES", 2_097_152)),
+    priorDigestMaxMessages: Math.max(1, num("PRIOR_DIGEST_MAX_MESSAGES", 64)),
+    priorDigestMaxBytes: Math.max(1024, num("PRIOR_DIGEST_MAX_BYTES", 262_144)),
+    turnHitSampleRate: Math.min(1, Math.max(0, num("TURN_HIT_SAMPLE_RATE", 0))),
+    requestMaxBytes: Math.max(1024, num("REQUEST_MAX_BYTES", 1_048_576)),
+    jobCrossPrior: ["on", "1", "true"].includes(env("JOB_CROSS_PRIOR", "off").toLowerCase()),
   };
 }

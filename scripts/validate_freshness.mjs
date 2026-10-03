@@ -50,13 +50,14 @@ async function chat(app, content, opts = {}) {
   for (const [k, v] of res.headers) {
     if (k.toLowerCase().startsWith("x-jevcache")) h[k.toLowerCase()] = v;
   }
+  const text = await res.text();
   let json = null;
   try {
-    json = await res.json();
+    json = JSON.parse(text);
   } catch {
-    /* */
+    /* stream */
   }
-  return { status: res.status, h, json };
+  return { status: res.status, h, json, text };
 }
 
 // Classifier
@@ -78,12 +79,17 @@ const liveHot = decidePolicy(
 check("live wins over exact_only", liveHot.mode === "bypass" && liveHot.reason === "freshness_live");
 
 check(
-  "stream bypass",
-  decidePolicy({ messages: [{ role: "user", content: "x" }], stream: true }, 0.3).reason === "stream",
+  "stream eligible when turn cache on",
+  decidePolicy({ messages: [{ role: "user", content: "x" }], stream: true }, 0.3).mode === "full",
 );
 check(
-  "tools bypass",
-  decidePolicy({ messages: [{ role: "user", content: "x" }], tools: [] }, 0.3).reason === "tools",
+  "empty tools stay eligible",
+  decidePolicy({ messages: [{ role: "user", content: "x" }], tools: [] }, 0.3).mode === "full",
+);
+check(
+  "TURN_CACHE off stream bypass",
+  decidePolicy({ messages: [{ role: "user", content: "x" }], stream: true }, 0.3, { turnCache: false }).reason ===
+    "stream",
 );
 check(
   "FRESHNESS_MODE=off volatile",
@@ -129,12 +135,12 @@ check(
   );
 
   const st = await chat(app, "hello", { bodyExtra: { stream: true } });
-  check("stream → BYPASS", st.h["x-jevcache"] === "BYPASS" && st.h["x-jevcache-reason"] === "stream");
+  check("stream final → MISS (not bypass)", st.h["x-jevcache"] === "MISS" && String(st.text || "").includes("[DONE]"));
 
   const tb = await chat(app, "hello", {
     bodyExtra: { tools: [{ type: "function", function: { name: "x" } }] },
   });
-  check("tools → BYPASS", tb.h["x-jevcache"] === "BYPASS" && tb.h["x-jevcache-reason"] === "tools");
+  check("tools schema eligible", tb.h["x-jevcache"] !== "BYPASS");
 
   const ht1 = await chat(app, "unique stable prompt for temp test xyz", { temperature: 0.9 });
   const ht2 = await chat(app, "unique stable prompt for temp test xyz", { temperature: 0.9 });

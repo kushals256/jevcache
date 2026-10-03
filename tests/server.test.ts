@@ -6,6 +6,16 @@ import path from "node:path";
 import { loadConfig, type Config } from "../src/config.js";
 import { createApp } from "../src/server.js";
 import type { IntentAdjudicator } from "../src/adjudicator/types.js";
+import {
+  buildNamespace,
+  exactKey,
+  priorDigest,
+  systemHash,
+  temperatureBucket,
+  toolsHash,
+  turnNamespace,
+  type ChatRequest,
+} from "../src/fingerprint.js";
 
 const prevMockUp = process.env.MOCK_UPSTREAM;
 const prevMockJev = process.env.MOCK_JEV;
@@ -91,19 +101,41 @@ describe("createApp integration", () => {
     expect(stats.hits_exact).toBe(1);
   });
 
-  it("stream → BYPASS, no store growth via HIT", async () => {
+  it("stream final text stores then SSE HIT", async () => {
     const { app, stats } = boot(tmpCfg());
     const r = await chat(app, {
       stream: true,
       messages: [{ role: "user", content: "stream me" }],
     });
-    expect(r.headers["x-jevcache"]).toBe("BYPASS");
-    expect(r.headers["x-jevcache-reason"]).toBe("stream");
-    expect(stats.bypasses).toBe(1);
+    expect(r.headers["x-jevcache"]).toBe("MISS");
+    expect(r.text).toContain("data: [DONE]");
+    const hit = await chat(app, {
+      stream: true,
+      messages: [{ role: "user", content: "stream me" }],
+    });
+    expect(hit.headers["x-jevcache"]).toBe("HIT");
+    expect(hit.text).toContain("data: [DONE]");
+    expect(stats.stream_hits).toBeGreaterThanOrEqual(1);
   });
 
-  it("tools → BYPASS", async () => {
-    const { app } = boot(tmpCfg());
+  it("tools schema is eligible; tool_calls response is not stored", async () => {
+    const { app, stats } = boot(tmpCfg());
+    const r = await chat(app, {
+      tools: [{ type: "function", function: { name: "x", parameters: {} } }],
+      messages: [{ role: "user", content: "FORCE_TOOL_CALLS please" }],
+    });
+    expect(r.headers["x-jevcache"]).toBe("MISS");
+    expect(r.headers["x-jevcache-reason"]).toBe("tool_calls");
+    const again = await chat(app, {
+      tools: [{ type: "function", function: { name: "x", parameters: {} } }],
+      messages: [{ role: "user", content: "FORCE_TOOL_CALLS please" }],
+    });
+    expect(again.headers["x-jevcache"]).toBe("MISS");
+    expect(stats.tool_calls_bypass).toBeGreaterThanOrEqual(1);
+  });
+
+  it("TURN_CACHE off bypasses tools", async () => {
+    const { app } = boot(tmpCfg({ turnCache: false }));
     const r = await chat(app, {
       tools: [{ type: "function", function: { name: "x", parameters: {} } }],
       messages: [{ role: "user", content: "use a tool" }],
@@ -289,5 +321,203 @@ describe("createApp integration", () => {
     expect(r.headers["x-jevcache"]).toBe("MISS");
     expect(stats.freshness_rejects).toBeGreaterThanOrEqual(1);
     expect(r.headers["x-jevcache-reason"]).toBe("freshness_reuse_refused");
+  });
+
+  it("same prior paraphrase is turn_jev", async () => {
+    const { app } = boot(tmpCfg({ intentThreshold: 0.35 }));
+    const prior = [
+      { role: "system", content: "You are helpful" },
+      {
+        role: "assistant",
+        content: "looking",
+        tool_calls: [{ id: "c1", type: "function", function: { name: "search", arguments: "{}" } }],
+      },
+      { role: "tool", tool_call_id: "c1", content: "mutex = lock" },
+    ];
+    const a = await chat(app, { messages: [...prior, { role: "user", content: "Explain mutexes simply please" }] });
+    const b = await chat(app, { messages: [...prior, { role: "user", content: "Please explain mutexes simply" }] });
+    expect(a.headers["x-jevcache"]).toBe("MISS");
+    expect(b.headers["x-jevcache"]).toBe("HIT");
+    expect(b.headers["x-jevcache-tier"]).toBe("turn_jev");
+  });
+
+  it("different tool prior does not jev-hit", async () => {
+    const { app } = boot(tmpCfg({ intentThreshold: 0.35 }));
+    const base = [
+      { role: "system", content: "You are helpful" },
+      {
+        role: "assistant",
+        content: "looking",
+        tool_calls: [{ id: "c1", type: "function", function: { name: "search", arguments: "{}" } }],
+      },
+    ];
+    await chat(app, {
+      messages: [...base, { role: "tool", tool_call_id: "c1", content: "mutex = lock" }, { role: "user", content: "Explain mutexes simply please" }],
+    });
+    const other = await chat(app, {
+      messages: [
+        ...base,
+        { role: "tool", tool_call_id: "c1", content: "weather is rain" },
+        { role: "user", content: "Please explain mutexes simply" },
+      ],
+    });
+    expect(other.headers["x-jevcache"]).toBe("MISS");
+  });
+
+  it("Job-Id does not cross priors unless opted in", async () => {
+    const priorA = [
+      { role: "user", content: "setup" },
+      { role: "assistant", content: "ok" },
+      { role: "user", content: "Explain mutexes simply please" },
+    ];
+    const priorB = [
+      { role: "user", content: "other setup" },
+      { role: "assistant", content: "different" },
+      { role: "user", content: "Please explain mutexes simply" },
+    ];
+    const isolated = boot(tmpCfg({ intentThreshold: 0.35, jobCrossPrior: false }));
+    await chat(isolated.app, { messages: priorA }, { "X-Jevcache-Job-Id": "job-a" });
+    const no = await chat(isolated.app, { messages: priorB }, { "X-Jevcache-Job-Id": "job-a" });
+    expect(no.headers["x-jevcache"]).not.toBe("HIT");
+
+    const wide = boot(tmpCfg({ intentThreshold: 0.35, jobCrossPrior: true }));
+    await chat(wide.app, { messages: priorA }, { "X-Jevcache-Job-Id": "job-a" });
+    const yes = await chat(wide.app, { messages: priorB }, { "X-Jevcache-Job-Id": "job-a" });
+    expect(yes.headers["x-jevcache"]).toBe("HIT");
+    expect(yes.headers["x-jevcache-tier"]).toBe("turn_jev");
+  });
+
+  it("pending tool_calls prior skips the adjudicator; exact replay still hits", async () => {
+    let calls = 0;
+    const tracking: IntentAdjudicator = {
+      name: "track",
+      admit: async () => {
+        calls += 1;
+        return { ok: true, admit: true, noul: 1, best: "x", costUsd: 0 };
+      },
+    };
+    const { app } = boot(tmpCfg({ intentThreshold: 0.35 }), { adjudicator: tracking });
+    const pending = {
+      role: "assistant",
+      content: null,
+      tool_calls: [{ id: "c1", type: "function", function: { name: "search", arguments: "{}" } }],
+    };
+    await chat(app, { messages: [pending, { role: "user", content: "Explain mutexes simply please" }] });
+    calls = 0;
+    const para = await chat(app, { messages: [pending, { role: "user", content: "Please explain mutexes simply" }] });
+    expect(calls).toBe(0);
+    expect(para.headers["x-jevcache"]).toBe("MISS");
+    const again = await chat(app, { messages: [pending, { role: "user", content: "Explain mutexes simply please" }] });
+    expect(again.headers["x-jevcache"]).toBe("HIT");
+  });
+
+  it("does not replay a stored tool_calls row", async () => {
+    const cfg = tmpCfg();
+    const { app, store } = boot(cfg);
+    const body: ChatRequest = {
+      model: "openai/gpt-4o-mini",
+      messages: [{ role: "user", content: "do not replay tools" }],
+    };
+    const digested = priorDigest(body.messages, { maxMessages: 64, maxBytes: 262144 });
+    const ns = turnNamespace(
+      buildNamespace({
+        tenant: "poison",
+        model: "openai/gpt-4o-mini",
+        systemHash: systemHash(body.messages),
+        toolsHash: toolsHash(body),
+        temperatureBucket: temperatureBucket(undefined, cfg.temperatureMax),
+      }),
+      digested.digest,
+      null,
+      { crossPrior: false },
+    );
+    const now = Date.now();
+    store.upsert(
+      {
+        namespace: ns,
+        exact_key: exactKey(ns, body),
+        user_text: "do not replay tools",
+        response_json: JSON.stringify({
+          choices: [
+            {
+              message: { role: "assistant", content: null, tool_calls: [{ id: "bad" }] },
+              finish_reason: "tool_calls",
+            },
+          ],
+        }),
+        model: "openai/gpt-4o-mini",
+        prompt_tokens: 1,
+        completion_tokens: 1,
+        est_cost_usd: 0.01,
+        created_at: now,
+        expires_at: now + 60_000,
+      },
+      1000,
+    );
+    const r = await chat(app, { messages: body.messages }, { "X-Jevcache-Tenant": "poison" });
+    expect(r.headers["x-jevcache"]).toBe("MISS");
+    expect(r.text).not.toContain("bad");
+    expect(r.text).toContain("MOCK_ANSWER");
+  });
+
+  it("stream and non-stream share one stored answer", async () => {
+    const { app } = boot(tmpCfg());
+    const messages = [{ role: "user", content: "parity answer please unique" }];
+    const streamFirst = await chat(app, { stream: true, messages });
+    const asJson = await chat(app, { stream: false, messages });
+    expect(streamFirst.text).toContain("data: [DONE]");
+    expect(asJson.headers["x-jevcache"]).toBe("HIT");
+    expect(asJson.text).toContain("MOCK_ANSWER");
+
+    const { app: app2 } = boot(tmpCfg());
+    const messages2 = [{ role: "user", content: "json first then stream" }];
+    await chat(app2, { messages: messages2 });
+    const asStream = await chat(app2, { stream: true, messages: messages2 });
+    expect(asStream.headers["x-jevcache"]).toBe("HIT");
+    expect(asStream.text).toContain("data: [DONE]");
+  });
+
+  it("TURN_CACHE off bypasses stream", async () => {
+    const { app } = boot(tmpCfg({ turnCache: false }));
+    const r = await chat(app, { stream: true, messages: [{ role: "user", content: "hi" }] });
+    expect(r.headers["x-jevcache"]).toBe("BYPASS");
+    expect(r.headers["x-jevcache-reason"]).toBe("stream");
+  });
+
+  it("bypasses logprobs, audio, forced tools, and missing user", async () => {
+    const { app } = boot(tmpCfg());
+    const logs = await chat(app, { logprobs: true, messages: [{ role: "user", content: "x" }] });
+    const audio = await chat(app, { modalities: ["audio"], messages: [{ role: "user", content: "x" }] });
+    const forced = await chat(app, {
+      tool_choice: "required",
+      tools: [{ type: "function", function: { name: "f" } }],
+      messages: [{ role: "user", content: "x" }],
+    });
+    const none = await chat(app, { messages: [{ role: "system", content: "only system" }] });
+    expect(logs.headers["x-jevcache-reason"]).toBe("logprobs");
+    expect(audio.headers["x-jevcache-reason"]).toBe("audio");
+    expect(forced.headers["x-jevcache-reason"]).toBe("tool_choice_forced");
+    expect(none.headers["x-jevcache-reason"]).toBe("no_user_message");
+  });
+
+  it("rejects an oversized body", async () => {
+    const { app } = boot(tmpCfg({ requestMaxBytes: 80 }));
+    const r = await chat(app, { messages: [{ role: "user", content: "x".repeat(200) }] });
+    expect(r.status).toBe(413);
+  });
+
+  it("healthz reports turn_cache and receipt is locked off loopback", async () => {
+    const { app } = boot(tmpCfg());
+    const hz = (await (await app.request("http://test/healthz")).json()) as { turn_cache: boolean };
+    expect(hz.turn_cache).toBe(true);
+
+    const locked = boot(tmpCfg({ host: "0.0.0.0", adminToken: "secret" }));
+    const denied = await locked.app.request("http://test/receipt");
+    expect(denied.status).toBe(401);
+    const ok = await locked.app.request("http://test/receipt", { headers: { "X-Jevcache-Admin": "secret" } });
+    expect(ok.status).toBe(200);
+    const body = (await ok.json()) as { tool_calls_bypass: number; turn_cache: boolean };
+    expect(body.turn_cache).toBe(true);
+    expect(typeof body.tool_calls_bypass).toBe("number");
   });
 });

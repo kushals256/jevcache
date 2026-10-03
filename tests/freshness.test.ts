@@ -86,10 +86,10 @@ describe("policy + freshness", () => {
     expect(r.reason).toBe("volatile");
   });
 
-  it("still bypasses stream/tools", () => {
+  it("TURN_CACHE off still bypasses stream", () => {
     expect(
-      decidePolicy({ messages: [{ role: "user", content: "x" }], stream: true }, 0.3).mode,
-    ).toBe("bypass");
+      decidePolicy({ messages: [{ role: "user", content: "x" }], stream: true }, 0.3, { turnCache: false }).reason,
+    ).toBe("stream");
   });
 });
 

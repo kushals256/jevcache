@@ -1,7 +1,17 @@
 /** SPDX-License-Identifier: MIT */
 import { createHash } from "node:crypto";
 
-const TRANSPORT_ONLY = new Set(["stream", "cache", "cache_control", "metadata"]);
+const TRANSPORT_ONLY = new Set([
+  "stream",
+  "cache",
+  "cache_control",
+  "metadata",
+  "stream_options",
+  "prompt_cache_key",
+  "prompt_cache_retention",
+  "prompt_cache_options",
+  "store",
+]);
 
 export type ChatMessage = {
   role: string;
@@ -9,6 +19,7 @@ export type ChatMessage = {
   name?: string;
   tool_calls?: unknown;
   tool_call_id?: string;
+  function_call?: unknown;
 };
 
 export type ChatRequest = {
@@ -26,6 +37,7 @@ export type ChatRequest = {
   functions?: unknown;
   tool_choice?: unknown;
   function_call?: unknown;
+  parallel_tool_calls?: unknown;
   response_format?: unknown;
   logit_bias?: unknown;
   user?: string;
@@ -73,6 +85,8 @@ export function toolsHash(body: ChatRequest): string {
       tools: normalizeToolsField(body.tools),
       tool_choice: body.tool_choice ?? null,
       functions: normalizeToolsField(body.functions),
+      function_call: body.function_call ?? null,
+      parallel_tool_calls: body.parallel_tool_calls ?? null,
     }),
   );
 }
@@ -124,4 +138,85 @@ export function buildNamespace(parts: NamespaceParts): string {
 
 export function exactKey(namespace: string, body: ChatRequest): string {
   return sha256(`${namespace}\n${stableStringify(canonicalBody(body))}`);
+}
+
+/** Messages before the last user turn, then the newest `maxMessages` of that prefix. */
+export function priorMessages(messages: ChatMessage[] | undefined, maxMessages: number): ChatMessage[] {
+  const list = messages ?? [];
+  let lastUser = -1;
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (list[i] && list[i].role === "user") {
+      lastUser = i;
+      break;
+    }
+  }
+  const prior = lastUser === -1 ? list.slice() : list.slice(0, lastUser);
+  const cap = Math.max(0, maxMessages);
+  if (prior.length <= cap) return prior;
+  return prior.slice(prior.length - cap);
+}
+
+function normalizePriorMessage(m: ChatMessage): Record<string, unknown> {
+  return {
+    role: m.role,
+    name: m.name ?? null,
+    tool_call_id: m.tool_call_id ?? null,
+    tool_calls: m.tool_calls ?? null,
+    function_call: m.function_call ?? null,
+    content: normalizeContent(m.content),
+  };
+}
+
+export function priorDigest(
+  messages: ChatMessage[] | undefined,
+  opts: { maxMessages: number; maxBytes: number },
+): { digest: string; priorEmpty: boolean } {
+  const windowed = priorMessages(messages, opts.maxMessages);
+  const priorEmpty = windowed.length === 0;
+  let prior = windowed;
+  while (prior.length > 0 && stableStringify(prior.map(normalizePriorMessage)).length > opts.maxBytes) {
+    prior = prior.slice(1);
+  }
+  if (prior.length === 0) {
+    return {
+      digest: sha256(priorEmpty ? "__empty_prior__" : "__truncated_prior__"),
+      priorEmpty,
+    };
+  }
+  return { digest: sha256(stableStringify(prior.map(normalizePriorMessage))), priorEmpty: false };
+}
+
+export function normalizeJobId(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const t = raw.trim();
+  if (t.length < 1 || t.length > 128) return null;
+  if (!/^[A-Za-z0-9._:/-]+$/.test(t)) return null;
+  return t;
+}
+
+export function turnNamespace(
+  baseNs: string,
+  priorDigestHex: string,
+  jobId: string | null,
+  opts: { crossPrior: boolean },
+): string {
+  const prior16 = priorDigestHex.slice(0, 16);
+  if (opts.crossPrior && jobId) return `${baseNs}|job:${jobId}`;
+  if (jobId) return `${baseNs}|job:${jobId}|td:${prior16}`;
+  return `${baseNs}|td:${prior16}|job:${prior16}`;
+}
+
+export function isTurnTier(priorEmpty: boolean): boolean {
+  return !priorEmpty;
+}
+
+/** Last prior message is an assistant turn still waiting on tool results. */
+export function priorEndsWithPendingToolCalls(
+  messages: ChatMessage[] | undefined,
+  maxMessages: number,
+): boolean {
+  const prior = priorMessages(messages, maxMessages);
+  const last = prior[prior.length - 1];
+  if (!last || last.role !== "assistant") return false;
+  return Array.isArray(last.tool_calls) && last.tool_calls.length > 0;
 }

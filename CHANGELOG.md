@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.0 — 2026-10-03
+- **Agent Turn Cache.** Same-job final text can HIT, including tool history and streaming finals. `tool_calls` responses are never stored or replayed (`X-Jevcache: MISS`, reason `tool_calls`).
+- **Breaking:** with `TURN_CACHE=on` (default), non-empty `tools`, tool-role history, and `stream: true` are eligible. Set `TURN_CACHE=off` to restore 1.x bypasses. Existing SQLite namespaces do not match the new turn suffix (cold cache).
+- **Namespace:** prior digest stays in the key. `X-Jevcache-Job-Id` labels a job without crossing priors unless `JOB_CROSS_PRIOR=on`.
+- **Rollback:** `TURN_CACHE=off`, or pin `@kushalicious/jevcache@0.3.2` / the matching image tag. Do not rely only on `:latest`.
+
 ## 0.3.2 — 2026-10-01
 - **Empty `tools: []` / `functions: []`:** no longer false-bypass; only non-empty tool defs or active `tool_choice` / `function_call` (not `"none"`) bypass. `toolsHash` treats empty arrays like omit.
 - **Stats:** `hit_rate_eligible` (hits / hits+misses) and `bypass_share` alongside overall `hit_rate`. `/stats` and `jevcache status` show both.

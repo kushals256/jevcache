@@ -75,9 +75,9 @@ See [`results/eval.json`](./results/eval.json). **Published honest number:** on 
 ### When **not** to use
 
 - Personalized / secret questions (“what’s my balance”)
-- Live tool-calling / side-effecting agents (bypassed when non-empty `tools` / tool history are present)
-- Multi-tenant cloud without `X-Jevcache-Tenant` (and understand local SQLite retains answers)
-- Expecting streaming cache HITs (stream is bypass in v0)
+- Agents that must re-run every tool step (`tool_calls` are never stored or replayed)
+- Multi-tenant cloud without `X-Jevcache-Tenant` (`X-Jevcache-Job-Id` is not a tenant boundary)
+- Treating a stream miss as a hit (the first stream is MISS; the next identical final-text request can HIT)
 
 ---
 
@@ -117,7 +117,7 @@ Do ALL of the following without asking me to run terminal commands myself (you r
 8. Add SETUP_JEVCACHE.md with start command, ADJUDICATOR kind, baseURL, and /stats link.
 9. Optionally add .cursor/rules/jevcache.mdc so future agents keep that baseURL.
 10. Prove it: paraphrased prompts → expect MISS then HIT (or run start --demo). Show X-Jevcache headers or /stats.
-    Do not expect HIT for streaming or tools requests (bypass by design).
+    Final text may HIT, including a later stream of the same answer. tool_calls are never stored. Optional header X-Jevcache-Job-Id groups a job without crossing priors unless JOB_CROSS_PRIOR=on. Chat Completions only; /v1/responses is 501.
 
 Do not commit secrets. If install fails, try the next method (npx → docker → clone).
 
@@ -188,11 +188,12 @@ See [`examples/openai_sdk.mjs`](./examples/openai_sdk.mjs).
 ## How it works
 
 ```text
-request → policy (bypass stream / non-empty tools / …)
+request → policy (bypass live / forced tool choice / audio / logprobs / …)
+       → turn namespace (same prior, optional Job-Id)
        → exact SHA cache?
-       → propose candidates (hybrid or recency) + IntentAdjudicator (default: Jev)?
-       → HIT  → return cached answer
-       → MISS → call upstream → store → return
+       → propose candidates + IntentAdjudicator (default: Jev)?
+       → HIT  → return cached final text
+       → MISS → call upstream → store final text (never tool_calls) → return
 ```
 
 **Why is the first call always a MISS?** The cache is empty for that question — pay once, store the answer, then paraphrases can HIT.
@@ -290,7 +291,7 @@ Optional env:
 
 Do not set `ADJUDICATOR=jev` and point `ADJUDICATOR_URL` at a System One host — **kind selects the client**.
 
-**Ops tips:** Unset `HTTP_PROXY` / `HTTPS_PROXY` when using localhost adjudicators (Node `fetch` can be hijacked). Kev is often single-request — expect higher latency under parallel paraphrases; the proxy still **fail-opens** on timeout. Keep `CANDIDATE_K` small (default 5; soft-capped to 7 for System One choice). `CANDIDATE_PROPOSE=hybrid` (default) shortlists over `RECENT_N` with a recency floor + Jaccard fill before the adjudicator; set `=recency` to restore newest-K only. Empty `tools: []` is cacheable; non-empty tools still bypass. `/stats` reports overall `hit_rate` and `hit_rate_eligible` (excl. bypasses).
+**Ops tips:** Unset `HTTP_PROXY` / `HTTPS_PROXY` when using localhost adjudicators (Node `fetch` can be hijacked). Kev is often single-request — expect higher latency under parallel paraphrases; the proxy still **fail-opens** on timeout. Keep `CANDIDATE_K` small (default 5; soft-capped to 7 for System One choice). `CANDIDATE_PROPOSE=hybrid` (default) shortlists over `RECENT_N` with a recency floor + Jaccard fill before the adjudicator; set `=recency` to restore newest-K only. A tools schema and tool history are eligible. A response that contains `tool_calls` is not stored. `TURN_CACHE=off` restores the 1.x stream/tools bypass. `/stats` reports overall `hit_rate` and `hit_rate_eligible` (excl. bypasses).
 
 `EMBEDDING_MODE` does **not** produce semantic HITs alone (only the adjudicator may admit).
 
@@ -314,9 +315,13 @@ LIVE=1 OPENROUTER_API_KEY=... npm run eval
 
 See [`results/eval.json`](./results/eval.json). Offline Jaccard baseline always runs in CI. **Published honest number:** prior live Jev run (n=100) false-positive rate **0.00** vs Jaccard@0.35 **~0.48** — not a forever guarantee; refresh with `LIVE=1`.
 
-## Not in v0
+## In 2.0 / still not
 
-Streaming cache HITs, tool-call caching, hosted multi-tenant SaaS, auto model routing, bundling local model weights.
+**In 2.0:** same-prior final-text hits (exact and intent), optional `X-Jevcache-Job-Id`, tools schema and tool history on the request, streaming final-text hits, `TURN_CACHE=off` to restore 1.x bypasses.
+
+**Still not:** replaying `tool_calls`, `/v1/responses`, tool-result caches, guaranteed dollar savings, multi-replica SQLite, a per-user delete API.
+
+To debug a surprising hit: read `X-Jevcache`, `X-Jevcache-Tier`, `X-Jevcache-Reason`, and `X-Jevcache-Entry-Id`; check `/stats`; set `TURN_CACHE=off` or `X-Jevcache-Bypass: 1`; delete `DATA_DIR` for a cold cache.
 
 ## Kill / park criteria
 
