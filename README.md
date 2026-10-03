@@ -9,7 +9,7 @@
 
 npm package and CLI stay `@kushalicious/jevcache` / `jevcache` (download history unchanged). Site: [morrowcache.vercel.app](https://morrowcache.vercel.app).
 
-A local OpenAI-compatible **chat response cache**: when your app asks the **same question in different words**, a **same-intent adjudicator** can reuse the cached answer — so you skip another expensive chat call.
+A local OpenAI-compatible **chat response cache**. **2.0 (Agent Turn Cache)** skips the model in two cases: the same question in different words, and an agent retrying the **same job** (same prior conversation, same-intent latest ask). It stores **final assistant text** only. A later stream of that answer can HIT. A response that contains `tool_calls` is returned and **never stored**.
 
 **Default:** cloud [TypeSafe Jev](https://typesafe.ai) via OpenRouter.  
 **Also works locally:** point the same proxy at **Kev**, **Laya**, **Laya MLX**, or any **System One**-compatible server on your machine — no OpenRouter key required for admits.
@@ -72,6 +72,19 @@ Upstream chat still needs a real model API key (or `MOCK_UPSTREAM=1` for a keyle
 
 See [`results/eval.json`](./results/eval.json). **Published honest number:** on a live Jev run (n=100), false-positive rate was **0.00** vs Jaccard@0.35 baseline **~0.48** — precision-first, not a forever guarantee. Offline suite now has 103 pairs including negation/entity traps; re-run with `LIVE=1` to refresh.
 
+### Agent Turn Cache
+
+| | |
+| --- | --- |
+| Same prior + paraphrased last user message | HIT (`turn_exact` or `turn_jev`) |
+| Different tool history | no intent HIT across those priors |
+| `X-Jevcache-Job-Id` | optional label; does **not** cross priors unless `JOB_CROSS_PRIOR=on`; not a tenant |
+| Stream of a stored final answer | HIT as SSE (`data: [DONE]`). The first stream is still a MISS |
+| Model returns `tool_calls` | MISS, reason `tool_calls`, nothing stored |
+| `TURN_CACHE=off` | 1.x again: stream, tools schema, and tool history bypass |
+
+`GET /healthz` includes `turn_cache`. `GET /receipt` uses the same admin lock as `/stats`.
+
 ### When **not** to use
 
 - Personalized / secret questions (“what’s my balance”)
@@ -84,12 +97,12 @@ See [`results/eval.json`](./results/eval.json). **Published honest number:** on 
 ## Easiest path: paste into Cursor (or any coding agent)
 
 **Open a new agent chat → copy the whole block below → send.**  
-The agent installs MorrowCache (`@kushalicious/jevcache`), wires `OPENAI_BASE_URL`, and proves **MISS → HIT**. Same prompt lives in [`AGENT_SETUP.md`](./AGENT_SETUP.md) and on the site: [morrowcache.vercel.app/agent-setup](https://morrowcache.vercel.app/agent-setup).
+The agent installs MorrowCache (`@kushalicious/jevcache`), wires `OPENAI_BASE_URL`, and proves **MISS → HIT**. The canonical prompt is [`AGENT_SETUP.md`](./AGENT_SETUP.md) (kept identical to the block below).
 
 ```text
 You are setting up MorrowCache (npm: @kushalicious/jevcache) for me in this project.
 
-Goal: run a local OpenAI-compatible proxy that skips chat completions when a same-intent adjudicator admits a paraphrase (not cosine). Default judge = cloud TypeSafe Jev; local Kev / Laya / Laya MLX / any System One also supported.
+Goal: run MorrowCache 2.0, a local OpenAI-compatible proxy. It skips the model when a same-intent adjudicator admits a paraphrase (not cosine), and when an agent retries the same job (same prior + same-intent latest ask). It stores final text only, including a later stream of that answer. It never stores tool_calls. Default judge = cloud TypeSafe Jev; local Kev / Laya / Laya MLX / any System One also supported. Set TURN_CACHE=off to restore 1.x stream/tools bypass.
 
 Repo: https://github.com/kushals256/jevcache
 npm: npx @kushalicious/jevcache@latest
@@ -220,6 +233,8 @@ On a TTY: **green HIT**, **dim MISS**. Ctrl+C prints a session summary.
 | `JEVCACHE_DEMO=1` | Same as `--demo` |
 | `JEVCACHE_QUIET=1` | Hide per-request lines |
 | `JEVCACHE_NO_COLOR=1` | Disable colors |
+| `TURN_CACHE=off` | 1.x bypass for stream, tools schema, and tool history |
+| `JOB_CROSS_PRIOR=on` | Job-Id may intent-hit across different priors (off by default) |
 
 ### Docker
 
@@ -244,7 +259,7 @@ For **default cloud Jev** admits: yes (`OPENROUTER_API_KEY`). For **local Kev/La
 **Does it work fully offline / on my laptop?**  
 Yes for the **adjudicator** path: Kev, Laya, Laya MLX, or any System One HTTP server on `127.0.0.1`. The proxy itself always runs locally. Upstream generation is whatever you configure (`UPSTREAM_BASE_URL`) — OpenRouter, another cloud API, or mock.
 
-**Multi-agent only?** No — any repeating/paraphrasing chat client benefits.
+**Multi-agent only?** No. Any repeating chat client benefits. Agents benefit when they retry the same job: final text can hit; tool-call steps still run.
 
 **Stale answers / freshness?**  
 Precision-first classes: `live` (bypass), `short` (~15m), `stable` (`TTL_SECONDS`, default 24h), `durable` (same as stable unless `TTL_DURABLE_SECONDS`). Exact + Jev paths enforce hard age; older candidates also get a same-call `reuse_fresh` check (`admit-v2`). Refuses show on `/stats` (`freshness_rejects`) and often `X-Jevcache-Reason: freshness_stale` on the following MISS. Demos stay safe: `reuse_fresh` only if age ≥ 5m (`FRESHNESS_JEV_MIN_AGE_MS`). Rollback: `FRESHNESS_MODE=off`.

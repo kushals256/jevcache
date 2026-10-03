@@ -1,6 +1,6 @@
 # Paste this into Cursor / Claude Code / any coding agent
 
-Copy everything inside the box below into a **new chat**. The agent will install `@kushalicious/jevcache` (**MorrowCache**), wire your app, and prove a MISS → HIT.
+Copy everything inside the box below into a **new chat**. The agent will install `@kushalicious/jevcache` (**MorrowCache 2.0**), wire your app, and prove a MISS → HIT. This file is the canonical prompt; it matches the block in the README.
 
 Live page with one-click copy: [morrowcache.vercel.app/agent-setup](https://morrowcache.vercel.app/agent-setup)
 
@@ -27,7 +27,7 @@ Default proxy port: **8080** (`http://127.0.0.1:8080/v1`).
 ```text
 You are setting up MorrowCache (npm: @kushalicious/jevcache) for me in this project.
 
-Goal: run a local OpenAI-compatible proxy that skips chat completions when a same-intent adjudicator admits a paraphrase (not cosine). Default judge = cloud TypeSafe Jev; local Kev / Laya / Laya MLX / any System One also supported.
+Goal: run MorrowCache 2.0, a local OpenAI-compatible proxy. It skips the model when a same-intent adjudicator admits a paraphrase (not cosine), and when an agent retries the same job (same prior + same-intent latest ask). It stores final text only, including a later stream of that answer. It never stores tool_calls. Default judge = cloud TypeSafe Jev; local Kev / Laya / Laya MLX / any System One also supported. Set TURN_CACHE=off to restore 1.x stream/tools bypass.
 
 Repo: https://github.com/kushals256/jevcache
 npm: npx @kushalicious/jevcache@latest
@@ -69,5 +69,6 @@ When done, tell me: start command, ADJUDICATOR kind, baseURL, key locations (not
 1. Confirm `GET http://127.0.0.1:8080/healthz` is ok.
 2. Open `http://127.0.0.1:8080/stats` or run `jevcache status` / `jevcache doctor --live`.
 3. Keep API keys only in local `.env` (never commit).
-4. Freshness is on by default. Rollback: `FRESHNESS_MODE=off`.
-5. Local example: `ADJUDICATOR=kev npx @kushalicious/jevcache@latest start`
+4. Freshness is on by default. Rollback: `FRESHNESS_MODE=off`. Agent-turn cache is on by default. Rollback: `TURN_CACHE=off`.
+5. Do not expect a HIT on a response that contains `tool_calls`. A stream of stored final text can HIT on the next request.
+6. Local example: `ADJUDICATOR=kev npx @kushalicious/jevcache@latest start`
