@@ -1,22 +1,36 @@
 import { Link } from "react-router-dom"
+import { GrainField } from "@/components/GrainField"
 import { Logo } from "@/components/Logo"
 
 export function SiteFooter() {
   return (
-    <footer className="relative z-10 border-t border-line px-4 py-14 md:px-6">
-      <div className="mx-auto grid max-w-5xl gap-10 md:grid-cols-[1.2fr_repeat(3,1fr)]">
+    <footer className="relative z-10 overflow-hidden border-t border-line bg-ink px-4 pt-16 text-muted md:px-6">
+      <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-[1.2fr_repeat(3,1fr)]">
         <div>
           <Logo />
-          <p className="mt-3 max-w-xs text-sm text-muted">
-            Skip the model when the question is the same. Prefer a miss over a wrong hit.
+          <p className="mt-3 max-w-xs text-sm">
+            Skip the model when the question is the same, or the same job is retried. Final text only. Prefer a miss over a wrong hit.
           </p>
+          <a
+            href="https://www.producthunt.com/products/morrowcache?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-morrowcache"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-5 inline-block"
+          >
+            <img
+              alt="MorrowCache - Skip the chat call when the question is the same | Product Hunt"
+              width={250}
+              height={54}
+              src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1264480&theme=dark&t=1790775288397"
+            />
+          </a>
         </div>
         <div>
-          <h3 className="mb-3 font-semibold tracking-tight text-sm text-bone">Product</h3>
-          <ul className="space-y-2 text-sm text-muted">
+          <h3 className="mb-3 font-mono text-xs text-bone">Product</h3>
+          <ul className="space-y-2 text-sm">
             <li>
-              <a href="/#start" className="no-underline hover:text-bone">
-                Start
+              <a href="/#agent" className="no-underline hover:text-bone">
+                Get started
               </a>
             </li>
             <li>
@@ -42,8 +56,8 @@ export function SiteFooter() {
           </ul>
         </div>
         <div>
-          <h3 className="mb-3 font-semibold tracking-tight text-sm text-bone">Resources</h3>
-          <ul className="space-y-2 text-sm text-muted">
+          <h3 className="mb-3 font-mono text-xs text-bone">Resources</h3>
+          <ul className="space-y-2 text-sm">
             <li>
               <a
                 href="https://github.com/kushals256/jevcache#readme"
@@ -82,8 +96,8 @@ export function SiteFooter() {
           </ul>
         </div>
         <div>
-          <h3 className="mb-3 font-semibold tracking-tight text-sm text-bone">Project</h3>
-          <ul className="space-y-2 text-sm text-muted">
+          <h3 className="mb-3 font-mono text-xs text-bone">Project</h3>
+          <ul className="space-y-2 text-sm">
             <li>
               <a
                 href="https://github.com/kushals256/jevcache"
@@ -115,14 +129,24 @@ export function SiteFooter() {
               </a>
             </li>
             <li>
-              <span className="text-muted">MIT License</span>
+              <span>MIT License</span>
             </li>
           </ul>
         </div>
       </div>
-      <p className="mx-auto mt-12 max-w-5xl text-xs text-muted">
-        Package <code className="text-bone/80">@kushalicious/jevcache</code> · fail-open by design
+      <p className="mx-auto mt-14 flex max-w-6xl flex-wrap justify-between gap-2 border-t border-line pt-6 font-mono text-xs">
+        <span>
+          Package <code className="text-bone">@kushalicious/jevcache</code>, fail-open by design
+        </span>
+        <span>© {new Date().getFullYear()} MorrowCache</span>
       </p>
+      {/* The wordmark is a window onto the grain: white letters on ink, multiplied over the canvas. */}
+      <div className="relative isolate mx-auto -mb-[0.18em] mt-8 w-fit overflow-hidden bg-ink" aria-hidden>
+        <GrainField even className="absolute inset-0 size-full" />
+        <p className="h-display pointer-events-none relative select-none whitespace-nowrap bg-ink text-center text-[clamp(3rem,13.5vw,12.5rem)] leading-none text-white mix-blend-multiply">
+          MorrowCache
+        </p>
+      </div>
     </footer>
   )
 }

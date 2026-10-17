@@ -1,0 +1,38 @@
+# MorrowCache
+
+> Local OpenAI-compatible proxy. It can skip a model call when the latest ask has the same intent as a stored final answer. The website https://morrowcache.vercel.app is the product page, not the API.
+
+Do not POST /v1/chat/completions to https://morrowcache.vercel.app. The proxy listens on http://127.0.0.1:8080/v1 unless PORT is set.
+
+## Install
+
+The npm name is @kushalicious/jevcache. There is no package named morrowcache.
+
+- npx @kushalicious/jevcache@latest
+- npx @kushalicious/jevcache init writes OPENAI_BASE_URL=http://127.0.0.1:8080/v1
+- Node.js >= 22.5, because storage uses node:sqlite
+- Docker: ghcr.io/kushals256/jevcache:latest, one container and one volume
+- Read https://raw.githubusercontent.com/kushals256/jevcache/main/README.md for the current version, pin, and rollback. Do not pin a version from memory.
+
+## What it stores
+
+Final assistant text only. A later stream of that stored text can be a hit. A response that contains tool_calls is returned to the caller and never stored, so tool calls are never replayed.
+
+/v1/responses returns 501. Use /v1/chat/completions.
+
+## How a hit is decided
+
+Exact match is tried first. Same-intent admits go through a judge. The default judge is cloud Jev. Local Kev, Laya, Laya MLX, or another System One server can be selected with ADJUDICATOR. If the judge errors, the proxy fails open and calls the model.
+
+Jaccard overlap only proposes candidates. It is not the admit decision.
+
+The namespace includes the tenant, model, system hash, tools hash, and a temperature bucket. A different temperature is a miss. The exact key hashes the rest of the request body as well, so a different top_p or seed is not a free hit. The prior conversation is part of the match. A 2.0 upgrade changes the cache key, so an existing database starts cold.
+
+TURN_CACHE=off restores the 1.x behavior that bypasses streaming, a tools schema, and tool history.
+
+## Limits
+
+- A wrong hit is possible. Prefer a miss over a wrong answer.
+- Freshness cues are English phrases. Stale "latest" style asks are refused while freshness is on.
+- One SQLite file, one process. Multi-replica use of the same file is unsupported.
+- No secrets belong in this file. Bring your own model key at runtime.

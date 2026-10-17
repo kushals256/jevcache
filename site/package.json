@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && CONTENT_BUILD=1 vite build && vite build --ssr src/prerender.tsx && node scripts/write-routes.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },

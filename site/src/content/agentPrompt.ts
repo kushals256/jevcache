@@ -7,7 +7,7 @@ export const BASE_URL_SNIPPET = `baseURL: "http://127.0.0.1:8080/v1"`
 /** Full paste-into-agent prompt — byte-identical to AGENT_SETUP.md fence */
 export const AGENT_PROMPT = `You are setting up MorrowCache (npm: @kushalicious/jevcache) for me in this project.
 
-Goal: run a local OpenAI-compatible proxy that skips chat completions when a same-intent adjudicator admits a paraphrase (not cosine). Default judge = cloud TypeSafe Jev; local Kev / Laya / Laya MLX / any System One also supported.
+Goal: run MorrowCache 2.0, a local OpenAI-compatible proxy. It skips the model when a same-intent adjudicator admits a paraphrase (not cosine), and when an agent retries the same job (same prior + same-intent latest ask). It stores final text only, including a later stream of that answer. It never stores tool_calls. Default judge = cloud TypeSafe Jev; local Kev / Laya / Laya MLX / any System One also supported. Set TURN_CACHE=off to restore 1.x stream/tools bypass.
 
 Repo: https://github.com/kushals256/jevcache
 npm: npx @kushalicious/jevcache@latest
@@ -35,7 +35,7 @@ Do ALL of the following without asking me to run terminal commands myself (you r
 8. Add SETUP_JEVCACHE.md with start command, ADJUDICATOR kind, baseURL, and /stats link.
 9. Optionally add .cursor/rules/jevcache.mdc so future agents keep that baseURL.
 10. Prove it: paraphrased prompts → expect MISS then HIT (or run start --demo). Show X-Jevcache headers or /stats.
-    Do not expect HIT for streaming or tools requests (bypass by design).
+    Final text may HIT, including a later stream of the same answer. tool_calls are never stored. Optional header X-Jevcache-Job-Id groups a job without crossing priors unless JOB_CROSS_PRIOR=on. Chat Completions only; /v1/responses is 501.
 
 Do not commit secrets. If install fails, try the next method (npx → docker → clone).
 

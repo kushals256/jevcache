@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://morrowcache.vercel.app/</loc></url>
+  <url><loc>https://morrowcache.vercel.app/agent-setup</loc></url>
+  <url><loc>https://morrowcache.vercel.app/use-cases</loc></url>
+  <url><loc>https://morrowcache.vercel.app/compare</loc></url>
+  <url><loc>https://morrowcache.vercel.app/compare/exact-cache</loc></url>
+  <url><loc>https://morrowcache.vercel.app/compare/word-overlap</loc></url>
+  <url><loc>https://morrowcache.vercel.app/compare/always-call</loc></url>
+</urlset>

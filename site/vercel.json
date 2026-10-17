@@ -1,3 +1,79 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/fonts/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/(.*)\\.(svg|png|jpg|jpeg|webp|ico|woff2)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=604800, stale-while-revalidate=86400" }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/llms.txt",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600" },
+        { "key": "X-Robots-Tag", "value": "noindex" }
+      ]
+    },
+    {
+      "source": "/llms-full.txt",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600" },
+        { "key": "X-Robots-Tag", "value": "noindex" }
+      ]
+    },
+    {
+      "source": "/agent-setup",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/use-cases",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/compare",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/compare/exact-cache",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/compare/word-overlap",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/compare/always-call",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    }
+  ]
 }

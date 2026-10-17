@@ -3,13 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>MorrowCache — skip the chat call when the question is the same</title>
-    <meta name="description" content="MorrowCache is an OpenAI-compatible proxy that reuses a cached chat answer when the question is the same intent. Fail-open." />
+    <title>MorrowCache</title>
+    <meta name="description" content="MorrowCache is an OpenAI-compatible proxy that reuses final text when the question is the same intent or an agent retries the same job. Fail-open. Tool calls are never stored." />
     <meta name="theme-color" content="#08101f" />
-    <meta property="og:title" content="MorrowCache — skip the chat call when the question is the same" />
-    <meta property="og:description" content="Same question, different words. Reuse the cached answer." />
+    <meta property="og:title" content="MorrowCache" />
+    <meta property="og:description" content="Same question or the same job retried. Reuse the final answer. Never replay tool calls." />
     <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://morrowcache.vercel.app/og.png" />
+    <link rel="describedby" href="https://morrowcache.vercel.app/llms.txt" type="text/plain" />
+    <link rel="preconnect" href="https://api.github.com" crossorigin />
+    <link rel="preconnect" href="https://api.npmjs.org" crossorigin />
+    <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/GeistPixel-Square.woff2" as="font" type="font/woff2" crossorigin />
   </head>
   <body>
     <div id="root"></div>

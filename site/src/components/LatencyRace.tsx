@@ -41,10 +41,6 @@ export function LatencyRace() {
           </div>
         </div>
       ))}
-      <p className="pt-2 text-sm text-muted">
-        Second lane: freshness questions refuse. Prefer a miss over a wrong hit. Where we lose: live
-        Jev FPR not refreshed here, personalized secrets, tool side effects.
-      </p>
     </div>
   )
 }

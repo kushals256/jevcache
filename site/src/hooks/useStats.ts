@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 
-const FALLBACK = { stars: 10, downloads: 367 }
+/** Last known good figures — keep close to live npm/GitHub so first paint isn’t stale. */
+const FALLBACK = { stars: 12, downloads: 1066 }
 
 export function useStats() {
   const [stars, setStars] = useState(FALLBACK.stars)
@@ -8,25 +9,31 @@ export function useStats() {
 
   useEffect(() => {
     let cancelled = false
+    const ctrl = new AbortController()
+
     ;(async () => {
       try {
         const [gh, npm] = await Promise.all([
-          fetch("https://api.github.com/repos/kushals256/jevcache").then((r) =>
-            r.ok ? r.json() : null,
-          ),
-          fetch("https://api.npmjs.org/downloads/point/last-month/@kushalicious/jevcache").then(
-            (r) => (r.ok ? r.json() : null),
-          ),
+          fetch("https://api.github.com/repos/kushals256/jevcache", {
+            signal: ctrl.signal,
+            cache: "no-store",
+          }).then((r) => (r.ok ? r.json() : null)),
+          fetch(
+            "https://api.npmjs.org/downloads/point/last-month/@kushalicious/jevcache",
+            { signal: ctrl.signal, cache: "no-store" },
+          ).then((r) => (r.ok ? r.json() : null)),
         ])
         if (cancelled) return
-        if (gh?.stargazers_count != null) setStars(gh.stargazers_count)
-        if (npm?.downloads != null) setDownloads(npm.downloads)
+        if (typeof gh?.stargazers_count === "number") setStars(gh.stargazers_count)
+        if (typeof npm?.downloads === "number") setDownloads(npm.downloads)
       } catch {
         /* keep fallbacks */
       }
     })()
+
     return () => {
       cancelled = true
+      ctrl.abort()
     }
   }, [])
 

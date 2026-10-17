@@ -76,7 +76,7 @@ export function TraceTheater({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "rounded-xl border border-hit/30 bg-ink/80 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-md",
+        "flex h-full flex-col rounded-xl border border-hit/30 bg-ink/80 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-md",
         className,
       )}
       data-phase={ORDER.includes(phase) ? phase : "hit"}

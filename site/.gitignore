@@ -2,5 +2,7 @@
 .env*
 node_modules
 dist
+dist-ssr
+dist-content
 *.local
 .DS_Store

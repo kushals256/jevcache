@@ -1,0 +1,28 @@
+# MorrowCache
+
+> Local OpenAI-compatible proxy that can skip a repeat model call when the latest ask has the same intent.
+
+## When to use
+
+- An agent or app already calls /v1/chat/completions, repeats similar work, and can run a local Node.js or Docker process.
+- The npm package is @kushalicious/jevcache. There is no package named morrowcache. Install with npx @kushalicious/jevcache@latest.
+- Point OpenAI-compatible clients at http://127.0.0.1:8080/v1 unless PORT is set. npx @kushalicious/jevcache init writes that base URL.
+- Requires Node.js >= 22.5 because the cache uses node:sqlite. Docker is the other install.
+
+## When not to use
+
+- The website is not the proxy. Do not POST /v1/chat/completions to https://morrowcache.vercel.app.
+- /v1/responses returns 501 and tells the caller to use /v1/chat/completions.
+- A response that contains tool_calls is returned and never stored or replayed.
+- A wrong hit is possible. If the judge errors, the proxy fails open and calls the model.
+- Freshness cues are English phrases.
+- SQLite is one process. Do not run multiple replicas against the same database file.
+- The namespace includes model, system, tools, and a temperature bucket, so a different temperature misses. The exact key also hashes the rest of the body, so top_p and seed are not free.
+- TURN_CACHE=off restores the 1.x bypass for streaming, a tools schema, and tool history.
+- A 2.0 upgrade uses a new cache key, so an existing database starts cold.
+
+## Setup
+
+- [README](https://raw.githubusercontent.com/kushals256/jevcache/main/README.md): Install, environment, and rollback. Read it for the current package version instead of pinning one from memory.
+- [Architecture](https://morrowcache.vercel.app/llms-full.txt): Cache key, judge, freshness, and the limits above.
+- Docker image: ghcr.io/kushals256/jevcache:latest. One container, one volume.

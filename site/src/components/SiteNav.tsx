@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react"
-import { Link, NavLink } from "react-router-dom"
-import { Menu, X } from "lucide-react"
+import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from "react"
+import { ArrowRight, Menu, X } from "lucide-react"
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom"
+import { useContentMode } from "@/contentMode"
 import { Logo } from "@/components/Logo"
 import { cn } from "@/lib/utils"
 
@@ -16,128 +17,240 @@ const links: {
   to: string
   label: string
   hash?: boolean
-  external?: boolean
+  match?: string
 }[] = [
-  { to: "/#start", label: "Start", hash: true },
-  { to: "/#problem", label: "Why", hash: true },
-  { to: "/agent-setup", label: "Agent setup" },
-  { to: "/use-cases", label: "Use cases" },
-  { to: "/compare", label: "Compare" },
+  { to: "/#problem", label: "Why", hash: true, match: "#problem" },
+  { to: "/#how", label: "How", hash: true, match: "#how" },
+  { to: "/#benchmark", label: "Replay", hash: true, match: "#benchmark" },
+  { to: "/agent-setup", label: "Agent", match: "/agent-setup" },
+  { to: "/compare", label: "Compare", match: "/compare" },
 ]
+
+const SECTIONS = ["problem", "how", "benchmark"]
+
+/** Smooth-scroll to a section on the home page, leaving room for the sticky nav. */
+export function scrollToSection(id: string) {
+  const el = document.getElementById(id)
+  if (!el) return false
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  // Land on the section's label, not its top padding, so the content fills the screen.
+  const anchor = el.querySelector<HTMLElement>(".eyebrow") ?? el
+  const top = anchor.getBoundingClientRect().top + window.scrollY - 88
+  window.scrollTo({ top, behavior: reduce ? "auto" : "smooth" })
+  return true
+}
 
 export function SiteNav() {
   const [open, setOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [section, setSection] = useState<string | null>(null)
+  const [hovered, setHovered] = useState<number | null>(null)
+  const [pill, setPill] = useState<{ left: number; width: number } | null>(null)
+  const railRef = useRef<HTMLDivElement>(null)
+  const itemRefs = useRef<(HTMLElement | null)[]>([])
+  const { pathname, hash } = useLocation()
+  const navigate = useNavigate()
+  const contentMode = useContentMode()
+  const onHome = pathname === "/"
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8)
+    const onScroll = () => setScrolled(window.scrollY > 24)
     onScroll()
     window.addEventListener("scroll", onScroll, { passive: true })
     return () => window.removeEventListener("scroll", onScroll)
   }, [])
 
+  useEffect(() => {
+    setOpen(false)
+  }, [pathname, hash])
+
+  // Scroll spy: on the home page, light up the link for the section in the middle of the screen.
+  useEffect(() => {
+    if (!onHome) {
+      setSection(null)
+      return
+    }
+    const els = SECTIONS.map((id) => document.getElementById(id)).filter((e): e is HTMLElement => e !== null)
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) if (e.isIntersecting) setSection(e.target.id)
+      },
+      { rootMargin: "-45% 0px -50% 0px" },
+    )
+    for (const el of els) io.observe(el)
+    const onTop = () => {
+      if (window.scrollY < window.innerHeight * 0.5) setSection(null)
+    }
+    window.addEventListener("scroll", onTop, { passive: true })
+    return () => {
+      io.disconnect()
+      window.removeEventListener("scroll", onTop)
+    }
+  }, [onHome])
+
+  const isActive = (link: (typeof links)[number]) => {
+    if (link.hash) return onHome && section === link.match?.slice(1)
+    return Boolean(link.match && pathname.startsWith(link.match))
+  }
+  const activeIndex = links.findIndex(isActive)
+  const target = hovered ?? (activeIndex >= 0 ? activeIndex : null)
+
+  // Slide the highlight under whichever link is hovered, or the active one.
+  useLayoutEffect(() => {
+    const el = target === null ? null : itemRefs.current[target]
+    const rail = railRef.current
+    if (!el || !rail) {
+      setPill(null)
+      return
+    }
+    const r = el.getBoundingClientRect()
+    const base = rail.getBoundingClientRect()
+    setPill({ left: r.left - base.left, width: r.width })
+  }, [target, pathname])
+
+  const goSection = (e: MouseEvent<HTMLAnchorElement>, id: string) => {
+    setOpen(false)
+    if (onHome) {
+      e.preventDefault()
+      if (scrollToSection(id)) window.history.replaceState(null, "", `#${id}`)
+      return
+    }
+    // The prerendered pages don't include the home page, so let the browser load it.
+    if (contentMode) return
+    e.preventDefault()
+    navigate(`/#${id}`)
+  }
+
+  const solid = scrolled || open
+
   return (
-    <header
-      className={cn(
-        "sticky top-0 z-50 flex h-14 items-center gap-4 px-4 backdrop-blur-md md:px-6",
-        "bg-ink/90 pt-[env(safe-area-inset-top,0px)]",
-        scrolled && "shadow-[inset_0_-1px_0_var(--color-line)]",
-      )}
-      style={{ height: "calc(3.5rem + env(safe-area-inset-top, 0px))" }}
-    >
-      <Logo />
-      <nav className="ml-auto hidden items-center gap-5 md:flex">
-        {links.map((l) =>
-          l.external ? (
+    <header className="sticky top-0 z-50 px-3 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] sm:px-6">
+      <div
+        className={cn(
+          "relative mx-auto flex h-12 max-w-6xl items-center justify-between gap-4 border pl-3 pr-1.5 transition-[background-color,border-color,backdrop-filter] duration-300",
+          solid ? "border-line-strong bg-[#111110]/90 backdrop-blur-md" : "border-transparent bg-transparent",
+        )}
+      >
+        <Logo />
+
+        <nav className="hidden md:block" aria-label="Primary">
+          <div ref={railRef} className="relative flex items-center gap-1" onMouseLeave={() => setHovered(null)}>
+            <span
+              aria-hidden
+              className={cn(
+                "pointer-events-none absolute top-1/2 h-8 -translate-y-1/2 rounded-md bg-white/[0.07] transition-[left,width,opacity] duration-300 ease-out motion-reduce:transition-none",
+                pill ? "opacity-100" : "opacity-0",
+              )}
+              style={pill ? { left: pill.left, width: pill.width } : undefined}
+            />
+            {links.map((l, i) => {
+              const active = isActive(l)
+              const cls = cn(
+                "relative z-10 flex h-8 items-center gap-2 rounded-md px-3 text-[13px] no-underline transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-hit/70",
+                active ? "text-bone" : "text-body/75 hover:text-bone",
+              )
+              const dot = (
+                <span
+                  aria-hidden
+                  className={cn("size-1 rounded-full bg-hit transition-opacity duration-300", active ? "opacity-100" : "opacity-0")}
+                />
+              )
+              const common = {
+                ref: (n: HTMLElement | null) => {
+                  itemRefs.current[i] = n
+                },
+                onMouseEnter: () => setHovered(i),
+                onFocus: () => setHovered(i),
+                onBlur: () => setHovered(null),
+                "aria-current": active ? ("page" as const) : undefined,
+              }
+              return l.hash ? (
+                <a key={l.label} href={l.to} className={cls} onClick={(e) => goSection(e, l.match!.slice(1))} {...common}>
+                  {dot}
+                  {l.label}
+                </a>
+              ) : (
+                <NavLink
+                  key={l.label}
+                  to={l.to}
+                  className={cls}
+                  {...common}
+                >
+                  {dot}
+                  {l.label}
+                </NavLink>
+              )
+            })}
             <a
-              key={l.label}
-              href={l.to}
+              href="https://github.com/kushals256/jevcache"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-muted no-underline hover:text-bone"
+              className="relative z-10 ml-1 inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-[13px] text-body/75 no-underline transition-colors hover:bg-white/[0.07] hover:text-bone"
             >
-              {l.label}
+              <GitHubIcon className="size-3.5" />
+              GitHub
             </a>
-          ) : l.hash ? (
-            <a key={l.label} href={l.to} className="text-sm text-muted no-underline hover:text-bone">
-              {l.label}
-            </a>
-          ) : (
-            <NavLink
-              key={l.label}
-              to={l.to}
-              className={({ isActive }) =>
-                cn("text-sm no-underline", isActive ? "text-hit" : "text-muted hover:text-bone")
-              }
-            >
-              {l.label}
-            </NavLink>
-          ),
-        )}
-        <a
-          href="https://github.com/kushals256/jevcache"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-full border border-hit/30 bg-panel px-3 py-1 text-sm text-bone no-underline hover:border-hit/50"
-        >
-          <GitHubIcon className="size-3.5" />
-          Star
-        </a>
-        <a
-          href="/#start"
-          className="rounded-full bg-hit px-3.5 py-1.5 text-sm font-medium text-ink no-underline"
-        >
-          Start
-        </a>
-      </nav>
-      <button
-        type="button"
-        className="ml-auto rounded-md p-2 text-bone md:hidden"
-        aria-expanded={open}
-        aria-label="Menu"
-        onClick={() => setOpen((v) => !v)}
-      >
-        {open ? <X className="size-5" /> : <Menu className="size-5" />}
-      </button>
-      {open && (
-        <div className="absolute inset-x-0 top-14 flex flex-col gap-1 border-b border-line bg-ink p-4 md:hidden">
-          {links.map((l) =>
-            l.external ? (
+          </div>
+        </nav>
+
+        <div className="flex items-center gap-1">
+          <a
+            href="/#agent"
+            onClick={(e) => goSection(e, "agent")}
+            className="group inline-flex h-9 items-center gap-1.5 bg-bone px-3.5 text-[13px] font-medium text-ink no-underline transition-colors hover:bg-hit active:translate-y-px"
+          >
+            Get started
+            <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={2.25} />
+          </a>
+          <button
+            type="button"
+            className="grid size-9 place-items-center text-bone md:hidden"
+            aria-expanded={open}
+            aria-label="Menu"
+            onClick={() => setOpen((v) => !v)}
+          >
+            {open ? <X className="size-5" /> : <Menu className="size-5" />}
+          </button>
+        </div>
+
+        {open && (
+          <div className="absolute inset-x-[-1px] top-full border border-t-0 border-line-strong bg-[#111110] p-2 md:hidden">
+            <nav className="flex flex-col" aria-label="Mobile">
+              {links.map((l) =>
+                l.hash ? (
+                  <a
+                    key={l.label}
+                    href={l.to}
+                    className={cn("px-3 py-3 text-sm no-underline hover:bg-elevated", isActive(l) ? "text-hit" : "text-bone")}
+                    onClick={(e) => goSection(e, l.match!.slice(1))}
+                  >
+                    {l.label}
+                  </a>
+                ) : (
+                  <Link
+                    key={l.label}
+                    to={l.to}
+                    onClick={() => setOpen(false)}
+                    className={cn("px-3 py-3 text-sm no-underline hover:bg-elevated", isActive(l) ? "text-hit" : "text-bone")}
+                  >
+                    {l.label}
+                  </Link>
+                ),
+              )}
               <a
-                key={l.label}
-                href={l.to}
+                href="https://github.com/kushals256/jevcache"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-md px-3 py-2 text-bone no-underline hover:bg-panel"
+                className="inline-flex items-center gap-2 px-3 py-3 text-sm text-bone no-underline hover:bg-elevated"
                 onClick={() => setOpen(false)}
               >
-                {l.label}
+                <GitHubIcon className="size-3.5" />
+                Star on GitHub
               </a>
-            ) : l.hash ? (
-              <a
-                key={l.label}
-                href={l.to}
-                className="rounded-md px-3 py-2 text-bone no-underline hover:bg-panel"
-                onClick={() => setOpen(false)}
-              >
-                {l.label}
-              </a>
-            ) : (
-              <Link
-                key={l.label}
-                to={l.to}
-                onClick={() => setOpen(false)}
-                className="rounded-md px-3 py-2 text-bone no-underline hover:bg-panel"
-              >
-                {l.label}
-              </Link>
-            ),
-          )}
-          <a href="/#start" className="rounded-md bg-hit px-3 py-2 text-center font-medium text-ink no-underline" onClick={() => setOpen(false)}>
-            Start
-          </a>
-        </div>
-      )}
+            </nav>
+          </div>
+        )}
+      </div>
     </header>
   )
 }
