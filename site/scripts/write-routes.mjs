@@ -100,7 +100,7 @@ for (const route of routes) {
     .replace(`content="${homeDescription}"`, `content="${route.description}"`)
     .replace(
       '<link rel="describedby" href="https://morrowcache.vercel.app/llms.txt" type="text/plain" />',
-      `<link rel="describedby" href="https://morrowcache.vercel.app/llms.txt" type="text/plain" />\n    <link rel="canonical" href="${canonical}" />`,
+      `<link rel="describedby" href="https://morrowcache.vercel.app/llms.txt" type="text/plain" />\n    <link rel="canonical" href="${canonical}" />\n    <meta property="og:site_name" content="MorrowCache" />`,
     )
     .replace(
       '<script type="module" src="/src/main.tsx"></script>',
@@ -115,4 +115,50 @@ for (const route of routes) {
   mkdirSync(dirname(file), { recursive: true })
   writeFileSync(file, html)
   console.log("wrote", route.path)
+}
+
+// The home page renders client-side, so give crawlers its own title, canonical,
+// site name and a text version of the hero. React replaces #root on load.
+{
+  const file = join(siteRoot, "dist/index.html")
+  let html = readFileSync(file, "utf8")
+  const homeUrl = "https://morrowcache.vercel.app/"
+  const homeTitle = "MorrowCache: skip the model when the question is the same"
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "WebSite", name: "MorrowCache", url: homeUrl },
+      {
+        "@type": "SoftwareApplication",
+        name: "MorrowCache",
+        url: homeUrl,
+        applicationCategory: "DeveloperApplication",
+        operatingSystem: "macOS, Linux, Windows",
+        description: homeDescription,
+        offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+      },
+    ],
+  }
+  const staticHome = `<main class="sr-only">
+      <h1>Skip the model when the question is rephrased, retried, or the same.</h1>
+      <p>MorrowCache is a local OpenAI-compatible proxy. When a request means the same thing, or your agent retries the same job, MorrowCache returns the stored final answer. Tool calls never replay. Fail-open by design.</p>
+      <p>Install: <code>npx @kushalicious/jevcache@latest</code>, then point your client's baseURL at http://127.0.0.1:8080/v1.</p>
+      <nav>
+        <a href="/agent-setup">Agent setup</a>
+        <a href="/use-cases">Use cases</a>
+        <a href="/compare">Compare</a>
+        <a href="https://github.com/kushals256/jevcache">GitHub</a>
+      </nav>
+    </main>`
+  if (!html.includes('<div id="root"></div>')) throw new Error("home shell changed; update the home SEO step")
+  html = html
+    .replace("<title>MorrowCache</title>", `<title>${homeTitle}</title>`)
+    .replace('<meta property="og:title" content="MorrowCache" />', `<meta property="og:title" content="${homeTitle}" />`)
+    .replace(
+      '<link rel="describedby" href="https://morrowcache.vercel.app/llms.txt" type="text/plain" />',
+      `<link rel="describedby" href="https://morrowcache.vercel.app/llms.txt" type="text/plain" />\n    <link rel="canonical" href="${homeUrl}" />\n    <meta property="og:url" content="${homeUrl}" />\n    <meta property="og:site_name" content="MorrowCache" />\n    <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`,
+    )
+    .replace('<div id="root"></div>', `<div id="root">${staticHome}</div>`)
+  writeFileSync(file, html)
+  console.log("wrote / (seo)")
 }
