@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- Source for site/public/og.png and docs/og.png: the link-preview card.
+         Three askings of one question jump over the model on a pixel arch (the logo's shape) and land on the stored answer. -->
+    <style>
+      @font-face {
+        font-family: "PixelSquare";
+        src: url("../site/public/fonts/GeistPixel-Square.woff2") format("woff2");
+        font-weight: 500;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "Geist";
+        src: url("../site/public/fonts/Geist-Variable.woff2") format("woff2");
+        font-weight: 100 900;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "GeistMono";
+        src: url("../site/public/fonts/GeistMono-Variable.woff2") format("woff2");
+        font-weight: 100 900;
+        font-display: block;
+      }
+      :root {
+        --ink: #050505;
+        --panel: #101010;
+        --bone: #f3f3ef;
+        --body: #c4c4bd;
+        --muted: #85857f;
+        --blue: #94b8ff;
+        --pink: #ffb6d0;
+        --white: #f3f3ef;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+        background: var(--ink);
+        color: var(--bone);
+        -webkit-font-smoothing: antialiased;
+      }
+      .frame {
+        position: relative;
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+      }
+      canvas {
+        position: absolute;
+        inset: 0;
+        width: 1200px;
+        height: 630px;
+      }
+      .logo {
+        position: absolute;
+        top: 36px;
+        right: 48px;
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        font-family: "PixelSquare", monospace;
+        font-weight: 500;
+        font-size: 28px;
+        color: #fff;
+      }
+      .logo svg {
+        height: 34px;
+        width: auto;
+      }
+      .q {
+        position: absolute;
+        left: 48px;
+        width: 392px;
+        height: 72px;
+        padding: 0 18px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 7px;
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        background: var(--panel);
+      }
+      .q .k {
+        font-family: "GeistMono", monospace;
+        font-size: 15px;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+      }
+      .q .t {
+        font-family: "GeistMono", monospace;
+        font-size: 19px;
+        color: var(--bone);
+        white-space: nowrap;
+      }
+      .model-label {
+        position: absolute;
+        left: 584px;
+        width: 232px;
+        top: 374px;
+        text-align: center;
+        font-family: "GeistMono", monospace;
+        font-size: 17px;
+        color: var(--muted);
+      }
+      .model-label s {
+        text-decoration-thickness: 2px;
+      }
+      .answer {
+        position: absolute;
+        left: 880px;
+        top: 236px;
+        width: 272px;
+        padding: 18px 18px 20px;
+        border: 1px solid rgba(148, 184, 255, 0.55);
+        background: var(--panel);
+        box-shadow: 0 0 50px rgba(148, 184, 255, 0.14);
+      }
+      .answer .k {
+        font-family: "GeistMono", monospace;
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--blue);
+        letter-spacing: 0.04em;
+      }
+      .answer p {
+        margin-top: 10px;
+        font-family: "GeistMono", monospace;
+        font-size: 17px;
+        line-height: 1.45;
+        color: var(--body);
+      }
+      h1 {
+        position: absolute;
+        left: 48px;
+        bottom: 40px;
+        font-family: "PixelSquare", monospace;
+        font-weight: 500;
+        font-size: 56px;
+        line-height: 1.12;
+        letter-spacing: -0.03em;
+      }
+      h1 .b {
+        color: var(--blue);
+      }
+      h1 .w {
+        color: var(--white);
+      }
+      h1 .m {
+        color: #6b6b66;
+      }
+      h1 .p {
+        color: var(--pink);
+      }
+      h1 .dim {
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="frame">
+      <canvas id="c" width="2400" height="1260"></canvas>
+
+      <div class="logo">
+        <svg viewBox="4 6 32 25" fill="none" aria-hidden="true">
+          <path d="M6 28h28" stroke="#f3f3ef" stroke-width="2" stroke-linecap="round" opacity="0.45" />
+          <path d="M11 28V16.5c0-1.5 1-2.7 2.5-3.1L29 10v18" stroke="#94b8ff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="29" cy="10" r="3" fill="#94b8ff" />
+        </svg>
+        MorrowCache
+      </div>
+
+      <div class="q" style="top: 114px">
+        <span class="k" style="color: var(--blue)">REPHRASED</span>
+        <span class="t">"mutexes, but explained simply?"</span>
+      </div>
+      <div class="q" style="top: 206px">
+        <span class="k" style="color: var(--white)">RETRIED</span>
+        <span class="t">agent re-runs the same job</span>
+      </div>
+      <div class="q" style="top: 298px">
+        <span class="k" style="color: var(--pink)">SAME</span>
+        <span class="t">"explain mutexes simply"</span>
+      </div>
+
+      <div class="model-label"><s>the model</s> skipped</div>
+
+      <div class="answer">
+        <div class="k">STORED ANSWER</div>
+        <p>A mutex lets one thread in at a time. The rest wait their turn.</p>
+      </div>
+
+      <h1>
+        <span class="b">Rephrased</span><span class="m">,</span> <span class="w">retried</span><span class="m">, or the</span> <span class="p">same</span><span class="m">?</span><br />
+        Skip the model.
+      </h1>
+    </div>
+
+    <script>
+      const ctx = document.getElementById("c").getContext("2d")
+      ctx.scale(2, 2)
+      const BLUE = [148, 184, 255], WHITE = [243, 243, 239], PINK = [255, 182, 208]
+      const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`
+
+      // The model: a switched-off tile block (4×4), drawn dim.
+      const MX = 584, MY = 134, T = 50, G = 10
+      let seed = 5
+      const rand = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646
+      for (let r = 0; r < 4; r++)
+        for (let c = 0; c < 4; c++) {
+          ctx.fillStyle = `rgba(243,243,239,${0.035 + rand() * 0.05})`
+          ctx.fillRect(MX + c * (T + G), MY + r * (T + G), T, T)
+        }
+
+      // Questions merge: each card's right edge → a join point left of the model.
+      const JX = 500, JY = 334
+      const qs = [
+        { y: 150, rgb: BLUE },
+        { y: 242, rgb: WHITE },
+        { y: 334, rgb: PINK },
+      ]
+      ctx.lineWidth = 2
+      for (const q of qs) {
+        ctx.strokeStyle = rgba(q.rgb, 0.85)
+        ctx.beginPath()
+        ctx.moveTo(452, q.y)
+        ctx.bezierCurveTo(480, q.y, 474, JY, JX, JY)
+        ctx.stroke()
+        ctx.fillStyle = rgba(q.rgb, 1)
+        ctx.beginPath()
+        ctx.moveTo(440, q.y - 10)
+        ctx.lineTo(450, q.y)
+        ctx.lineTo(440, q.y + 10)
+        ctx.lineTo(430, q.y)
+        ctx.closePath()
+        ctx.fill()
+      }
+
+      // The skip: a pixel arch from the join, up over the model, down onto the answer card.
+      const SX = JX, SY = JY, EX = 868, EY = 294
+      const PX = 690, PY = 80 // apex, well above the model block
+      const pts = []
+      for (let i = 0; i <= 1000; i++) {
+        const t = i / 1000
+        const x = (1 - t) ** 2 * SX + 2 * (1 - t) * t * PX + t * t * EX
+        const y = (1 - t) ** 2 * SY + 2 * (1 - t) * t * (PY - (SY + EY) / 2 + PY) + t * t * EY
+        pts.push([x, y, t])
+      }
+      // Sample by arc length so the pixel squares are evenly spaced.
+      const STEP = 15, SQ = 9
+      let acc = STEP, prev = pts[0]
+      const marks = []
+      for (const p of pts) {
+        acc += Math.hypot(p[0] - prev[0], p[1] - prev[1])
+        prev = p
+        if (acc >= STEP) {
+          acc = 0
+          marks.push(p)
+        }
+      }
+      for (const [x, y, t] of marks) {
+        const a = 0.35 + 0.65 * t
+        ctx.fillStyle = rgba(BLUE, a)
+        // Snap to a 3px grid so it reads as pixels, not a smooth curve.
+        ctx.fillRect(Math.round((x - SQ / 2) / 3) * 3, Math.round((y - SQ / 2) / 3) * 3, SQ, SQ)
+      }
+      ctx.fillStyle = rgba(BLUE, 1)
+      ctx.beginPath()
+      ctx.arc(EX + 6, EY, 7, 0, Math.PI * 2)
+      ctx.fill()
+    </script>
+  </body>
+</html>
