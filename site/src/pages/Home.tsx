@@ -160,7 +160,7 @@ export default function Home() {
         <dl className="relative z-10 mx-auto grid w-full max-w-5xl grid-cols-2 border-x border-t border-line bg-ink/85 backdrop-blur-md sm:grid-cols-4">
           {[
             { label: "GitHub stars", value: stars, link: GITHUB },
-            { label: "npm downloads, last 30 days", value: downloads },
+            { label: "npm downloads, all time", value: downloads },
             { label: "Tests in repo", value: UNIT_TESTS },
             { label: "Miss vs hit, in ms", text: "2817 → 423" },
           ].map((m, i) => (
