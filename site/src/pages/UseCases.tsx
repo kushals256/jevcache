@@ -29,7 +29,7 @@ const CASES = [
   {
     n: "04",
     title: "Freshness-sensitive “latest”",
-    body: "When the question depends on time, refuse the stale hit and call the model. Prefer miss over wrong.",
+    body: "When the question depends on time, refuse the stale hit and call the model.",
     receipt: '"what\'s the latest" · refuse → miss',
   },
 ]
@@ -61,10 +61,10 @@ export default function UseCases() {
         <div className="mx-auto max-w-5xl">
           <p className="font-mono text-[0.7rem] uppercase tracking-[0.18em] text-muted">Use cases</p>
           <h1 className="font-pixel-square mt-4 max-w-3xl text-balance text-[clamp(2rem,5vw,3.4rem)] leading-[1.02] tracking-[-0.04em]">
-            Where MorrowCache earns its keep
+            Where MorrowCache helps
           </h1>
           <p className="mt-5 max-w-2xl text-pretty text-base leading-relaxed text-body sm:text-lg">
-            Same product, different loops. Each case has a receipt — and a place we don’t win.
+            Four loops where requests repeat, and a list of where MorrowCache doesn’t help.
           </p>
         </div>
       </section>

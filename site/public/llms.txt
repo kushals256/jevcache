@@ -26,3 +26,11 @@
 - [README](https://raw.githubusercontent.com/kushals256/jevcache/main/README.md): Install, environment, and rollback. Read it for the current package version instead of pinning one from memory.
 - [Architecture](https://morrowcache.vercel.app/llms-full.txt): Cache key, judge, freshness, and the limits above.
 - Docker image: ghcr.io/kushals256/jevcache:latest. One container, one volume.
+
+## Guides and comparisons
+
+- [Integrations](https://morrowcache.vercel.app/integrations): OpenAI Node and Python SDKs, Vercel AI SDK (use openai.chat), LangChain, curl, Ollama, vLLM, llama.cpp.
+- [Benchmark](https://morrowcache.vercel.app/benchmark): Live judge eval (0 false positives on 50 traps, recall 0.38), word-overlap baseline, hit and miss latency, judge cost.
+- [Semantic caching guide](https://morrowcache.vercel.app/guides/semantic-caching): How semantic caches decide a hit and the four ways they go wrong.
+- [Prompt caching vs response caching](https://morrowcache.vercel.app/guides/prompt-caching-vs-response-caching): Provider prefix caching is not response reuse.
+- [vs GPTCache](https://morrowcache.vercel.app/compare/gptcache), [vs LiteLLM caching](https://morrowcache.vercel.app/compare/litellm-cache), [vs Redis LangCache and RedisVL](https://morrowcache.vercel.app/compare/redis-semantic-cache), [vs gateway caches](https://morrowcache.vercel.app/compare/gateway-caches) (Helicone, Portkey, Cloudflare AI Gateway, Bifrost).

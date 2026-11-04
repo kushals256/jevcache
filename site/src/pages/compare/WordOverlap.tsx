@@ -19,7 +19,7 @@ export default function WordOverlap() {
           fine. It does not know “what’s the latest,” and it will happily hit the wrong FAQ.
         </p>
       }
-      take="We measured overlap and rejected it as the primary gate. Prefer miss over wrong hit."
+      take="We measured overlap and rejected it as the primary gate."
     />
   )
 }

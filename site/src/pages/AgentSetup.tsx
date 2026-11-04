@@ -112,7 +112,7 @@ export default function AgentSetup() {
       <section className="px-4 py-24 sm:px-6 sm:py-32">
         <div className="mx-auto max-w-6xl">
           <p className="eyebrow">Pick a judge</p>
-          <h2 className="h-display mt-6 max-w-3xl text-[clamp(2rem,4.5vw,3.5rem)]">Cloud or local. Your call.</h2>
+          <h2 className="h-display mt-6 max-w-3xl text-[clamp(2rem,4.5vw,3.5rem)]">Pick a cloud judge or a local one.</h2>
           <div className="mt-14 grid gap-12 md:grid-cols-2 md:gap-6">
             {MODES.map((m) => (
               <div key={m.title}>

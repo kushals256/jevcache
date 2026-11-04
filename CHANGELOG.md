@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.0.1 — 2026-11-04
+- No runtime changes. npm description, keywords and README links updated for search; README links to the new integrations, benchmark and comparison pages on the site.
+
 ## 2.0.0 — 2026-10-03
 - **Agent Turn Cache.** Same-job final text can HIT, including tool history and streaming finals. `tool_calls` responses are never stored or replayed (`X-Jevcache: MISS`, reason `tool_calls`).
 - **Breaking:** with `TURN_CACHE=on` (default), non-empty `tools`, tool-role history, and `stream: true` are eligible. Set `TURN_CACHE=off` to restore 1.x bypasses. Existing SQLite namespaces do not match the new turn suffix (cold cache).

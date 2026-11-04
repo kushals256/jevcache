@@ -49,9 +49,14 @@ export function SiteFooter() {
               </Link>
             </li>
             <li>
-              <a href="/#benchmark" className="no-underline hover:text-bone">
+              <Link to="/integrations" className="no-underline hover:text-bone">
+                Integrations
+              </Link>
+            </li>
+            <li>
+              <Link to="/benchmark" className="no-underline hover:text-bone">
                 Benchmark
-              </a>
+              </Link>
             </li>
           </ul>
         </div>
@@ -69,8 +74,13 @@ export function SiteFooter() {
               </a>
             </li>
             <li>
-              <Link to="/agent-setup" className="no-underline hover:text-bone">
-                Agent setup
+              <Link to="/guides/semantic-caching" className="no-underline hover:text-bone">
+                Semantic caching guide
+              </Link>
+            </li>
+            <li>
+              <Link to="/guides/prompt-caching-vs-response-caching" className="no-underline hover:text-bone">
+                Prompt vs response caching
               </Link>
             </li>
             <li>

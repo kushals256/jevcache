@@ -19,7 +19,7 @@ export default function ExactCache() {
           normalized to identical prompts, exact is enough and cheaper to reason about.
         </p>
       }
-      take="Morrow includes exact hits and adds same-intent on top. Prefer a miss over a wrong hit."
+      take="Identical prompts: exact is enough. Rephrased prompts: Morrow adds same-intent hits."
     />
   )
 }

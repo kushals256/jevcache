@@ -1,7 +1,7 @@
 {
   "name": "@kushalicious/jevcache",
-  "version": "2.0.0",
-  "description": "MorrowCache 2.0 Agent Turn Cache: OpenAI-compatible proxy that skips the model on same-job final answers. Fail-open. Never replays tool_calls.",
+  "version": "2.0.1",
+  "description": "MorrowCache: open-source semantic cache for OpenAI-compatible LLM APIs. A local proxy that reuses answers for paraphrased prompts and AI agent retries. Fail-open; never replays tool calls.",
   "type": "module",
   "bin": {
     "jevcache": "./bin/jevcache.js"
@@ -36,17 +36,31 @@
   "bugs": {
     "url": "https://github.com/kushals256/jevcache/issues"
   },
-  "homepage": "https://github.com/kushals256/jevcache#readme",
+  "homepage": "https://morrowcache.vercel.app",
   "keywords": [
-    "jev",
-    "typesafe",
-    "openrouter",
-    "openai",
+    "morrowcache",
+    "semantic-cache",
+    "semantic-caching",
+    "llm-cache",
+    "llm-response-cache",
+    "response-cache",
     "cache",
     "llm",
+    "openai",
+    "openai-compatible",
+    "openai-proxy",
+    "chat-completions",
     "proxy",
-    "semantic-cache",
-    "agent-cache"
+    "ai-agents",
+    "agent-cache",
+    "coding-agent",
+    "llmops",
+    "cost-optimization",
+    "openrouter",
+    "ollama",
+    "gptcache-alternative",
+    "jev",
+    "typesafe"
   ],
   "dependencies": {
     "@hono/node-server": "^1.14.1",

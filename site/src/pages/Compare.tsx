@@ -13,7 +13,7 @@ export const COMPARISONS: {
     to: "/compare/always-call",
     title: "vs always calling the model",
     name: "Always calling the model",
-    take: "Always correct, always expensive. Morrow wins on repeats and paraphrases.",
+    take: "Always fresh, always paid. Morrow wins on repeats and paraphrases.",
     window: {
       rows: [
         { label: "Request 1", text: "explain mutexes" },
@@ -43,7 +43,7 @@ export const COMPARISONS: {
     to: "/compare/word-overlap",
     title: "vs word-overlap (Jaccard)",
     name: "Word overlap",
-    take: "Overlap catches paraphrases but lies on freshness. Offline FPR 0.49 at Jaccard@0.35.",
+    take: "Overlap catches paraphrases but gives wrong hits on freshness questions. Offline FPR 0.49 at Jaccard@0.35.",
     window: {
       rows: [
         { label: "Asked", text: "latest node release?" },
@@ -56,16 +56,39 @@ export const COMPARISONS: {
   },
 ]
 
+export const NAMED: { to: string; name: string; take: string }[] = [
+  {
+    to: "/compare/gptcache",
+    name: "GPTCache",
+    take: "Python library with an embedding threshold. MorrowCache is a proxy for any client, with a judge.",
+  },
+  {
+    to: "/compare/litellm-cache",
+    name: "LiteLLM caching",
+    take: "A gateway whose docs advise exact caching for agents. MorrowCache can sit in front of it.",
+  },
+  {
+    to: "/compare/redis-semantic-cache",
+    name: "Redis LangCache and RedisVL",
+    take: "Scales across servers; your code calls it. MorrowCache needs no code change but is one process.",
+  },
+  {
+    to: "/compare/gateway-caches",
+    name: "Helicone, Portkey, Cloudflare, Bifrost",
+    take: "Gateway caches: mostly exact-match, semantic ones on a cosine threshold or enterprise plans.",
+  },
+]
+
 export default function Compare() {
   return (
     <main className="relative z-10 text-bone">
       <section className="px-4 pb-16 pt-16 sm:px-6 sm:pt-24">
         <div className="mx-auto max-w-6xl">
           <p className="eyebrow">Compare</p>
-          <h1 className="h-display mt-6 max-w-4xl text-[clamp(2.5rem,6vw,5rem)]">Honest head-to-heads</h1>
+          <h1 className="h-display mt-6 max-w-4xl text-[clamp(2.5rem,6vw,5rem)]">Head-to-heads</h1>
           <p className="mt-6 max-w-2xl text-pretty text-base leading-relaxed text-body sm:text-lg">
-            No named commercial competitors. Just the approaches people actually try before a semantic cache, and
-            where Morrow wins or loses.
+            The approaches people try before a semantic cache, then named tools: GPTCache, LiteLLM, Redis and the
+            gateway caches. Where Morrow wins and where it loses.
           </p>
         </div>
       </section>
@@ -90,6 +113,26 @@ export default function Compare() {
             </li>
           ))}
         </ul>
+
+        <div className="mx-auto mt-24 max-w-6xl border-t border-line pt-10">
+          <h2 className="text-2xl font-medium tracking-tight text-bone">Named tools</h2>
+          <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-muted">
+            Facts taken from each project&rsquo;s own docs, with sources on every page.
+          </p>
+          <ul className="mt-8 grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2">
+            {NAMED.map((c) => (
+              <li key={c.to} className="bg-ink">
+                <Link to={c.to} className="group block h-full p-6 no-underline">
+                  <h3 className="flex items-center justify-between gap-4 text-lg font-medium text-bone">
+                    vs {c.name}
+                    <ArrowRight className="size-4 shrink-0 text-muted transition-transform duration-200 group-hover:translate-x-1 group-hover:text-bone" />
+                  </h3>
+                  <p className="mt-2 text-[15px] leading-relaxed text-muted">{c.take}</p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
 
         <div className="mx-auto mt-24 flex max-w-6xl flex-col gap-6 border-t border-line pt-10 sm:flex-row sm:items-center sm:justify-between">
           <p className="h-display text-[clamp(1.6rem,3vw,2.4rem)]">Prefer a miss over a wrong hit.</p>

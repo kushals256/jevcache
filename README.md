@@ -7,6 +7,8 @@
 
 **MorrowCache** — routers pick a model. This proxy decides whether to call one.
 
+An open-source **semantic cache for OpenAI-compatible LLM APIs**: run it locally, change your client's `baseURL`, and repeated or rephrased questions (and AI agent retries) are answered from cache instead of calling the model again.
+
 npm package and CLI stay `@kushalicious/jevcache` / `jevcache` (download history unchanged). Site: [morrowcache.vercel.app](https://morrowcache.vercel.app). Agent summary: https://morrowcache.vercel.app/llms.txt
 
 A local OpenAI-compatible **chat response cache**. **2.0 (Agent Turn Cache)** skips the model in two cases: the same question in different words, and an agent retrying the **same job** (same prior conversation, same-intent latest ask). It stores **final assistant text** only. A later stream of that answer can HIT. A response that contains `tool_calls` is returned and **never stored**.
@@ -26,6 +28,8 @@ call 2  "Please explain mutexes simply"     →  HIT    ~0.4s   (same intent · 
 ```
 
 **Verified on a real app:** MISS `3244ms` → HIT (`jev`, intent `0.93`) `394ms`, same cached reply, est. saved `$0.000137`.
+
+**Docs:** [integrations](https://morrowcache.vercel.app/integrations) (OpenAI SDK, Vercel AI SDK, LangChain, Ollama) · [benchmark](https://morrowcache.vercel.app/benchmark) · [vs GPTCache](https://morrowcache.vercel.app/compare/gptcache) · [vs LiteLLM caching](https://morrowcache.vercel.app/compare/litellm-cache) · [vs gateway caches](https://morrowcache.vercel.app/compare/gateway-caches) · [semantic caching guide](https://morrowcache.vercel.app/guides/semantic-caching)
 
 **Want to try it in your project?** → [paste the agent prompt](#easiest-path-paste-into-cursor-or-any-coding-agent) into a new Cursor chat (or run `npx` below).
 

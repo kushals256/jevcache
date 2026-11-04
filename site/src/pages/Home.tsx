@@ -12,35 +12,13 @@ import { CountUp } from "@/components/CountUp"
 import { SetupPromptButton } from "@/components/SetupPromptButton"
 import { AGENT_PROMPT, BASE_URL_SNIPPET, INSTALL } from "@/content/agentPrompt"
 import { useStats } from "@/hooks/useStats"
+import { HOME_FAQ as FAQ } from "@/content/faq"
 import { cn } from "@/lib/utils"
 
 type CopyKind = "prompt" | "install" | "base"
 
 const UNIT_TESTS = 89
 const GITHUB = "https://github.com/kushals256/jevcache"
-
-const FAQ = [
-  {
-    q: "Does it work with OpenRouter or any OpenAI-compatible API?",
-    a: "Yes. Point the proxy at your upstream baseURL and your SDK at http://127.0.0.1:8080/v1. Upstream can be OpenAI, OpenRouter, or a local OpenAI-compatible server. Claude works when the client speaks that HTTP API. Chat Completions only: /v1/responses returns 501.",
-  },
-  {
-    q: "Do I need TypeSafe Jev?",
-    a: "Jev is the default same-intent judge and needs OPENROUTER_API_KEY. Or set ADJUDICATOR=kev|laya|laya-mlx|systemone for a local System One, and admits need no OpenRouter key. Without a judge ready, the proxy runs exact-only.",
-  },
-  {
-    q: "What if the adjudicator fails?",
-    a: "Fail-open. The real model still runs. A miss is always preferred over a wrong hit.",
-  },
-  {
-    q: "Can wrong hits happen? What about streams and tools?",
-    a: "Yes, wrong hits can happen. Tune the threshold, respect freshness, and read the X-Jevcache header. Final text can hit, including a later stream of that answer. Tool-call responses are never stored. TURN_CACHE is on by default for agent retries; TURN_CACHE=off restores the 1.x stream/tools bypass.",
-  },
-  {
-    q: "Where do the numbers come from?",
-    a: "Stars and npm downloads are fetched live, with a fallback if the fetch fails. 89 is the test count in this repo, not users or a benchmark. 2817ms → 423ms is one recorded run at intent 0.94. The 0.49 false-positive rate is offline word-overlap Jaccard@0.35, n=103: that is the overlap cache, not a MorrowCache rate.",
-  },
-]
 
 const CONTRAST = [
   {
@@ -243,7 +221,7 @@ export default function Home() {
             <h2 className="h-display mt-6 text-[clamp(2.25rem,5vw,4rem)]">Running in minutes.</h2>
             <p className="mt-6 max-w-md text-[15px] leading-relaxed text-ink/70">
               Paste one prompt into Cursor, Claude Code or Codex. Your agent installs MorrowCache 2.0, writes .env,
-              points baseURL at the proxy and proves a miss, then a hit. Your keys never leave your machine.
+              points baseURL at the proxy and proves a miss, then a hit. Your keys stay in your local .env.
             </p>
             <div className="mt-10 flex flex-wrap items-center gap-4">
               <button
@@ -355,7 +333,7 @@ export default function Home() {
         <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[0.8fr_1.2fr]">
           <div>
             <p className="eyebrow">FAQ</p>
-            <h2 className="h-display mt-6 text-[clamp(2.25rem,5vw,4rem)]">Straight answers.</h2>
+            <h2 className="h-display mt-6 text-[clamp(2.25rem,5vw,4rem)]">Common questions.</h2>
           </div>
           <div className="border-t border-line">
             {FAQ.map((item, i) => {
@@ -403,7 +381,8 @@ export default function Home() {
             model.
           </h2>
           <p className="mt-6 max-w-md text-base text-ink/75">
-            Paste the prompt. Ask twice. Read the header. Prefer a miss over a wrong hit.
+            Paste the prompt, ask the same thing twice, and check the{" "}
+            <span className="whitespace-nowrap">X-Jevcache</span> header.
           </p>
           <div className="mt-10 flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row">
             <button

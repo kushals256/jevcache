@@ -187,7 +187,7 @@ const STEPS = [
   },
   {
     key: "REFUSE",
-    title: "Knows when to say no",
+    title: "Refuses, or falls back to the model",
     body: "Freshness questions refuse. Tool-call responses are never stored, so tool steps still run. If the judge is down, it fails open.",
     points: ["Refuse stale answers", "Never replay tool calls", "Fail open, always"],
     mock: <RefuseMock />,

@@ -67,7 +67,7 @@ export function ComparePage({
 
       <section className="px-4 py-24 sm:px-6 sm:py-32">
         <div className="mx-auto max-w-6xl">
-          <p className="eyebrow">The honest take</p>
+          <p className="eyebrow">Verdict</p>
           <p className="h-display mt-6 max-w-4xl text-[clamp(1.8rem,3.6vw,3rem)]">{take}</p>
           <div className="mt-10 flex flex-wrap gap-3">
             <a

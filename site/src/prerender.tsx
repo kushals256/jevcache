@@ -12,3 +12,6 @@ export function renderRoute(url: string) {
     </StrictMode>,
   )
 }
+
+export { ROUTES, SITE_URL, SITE_NAME, NPM_PACKAGE, NPM_URL, GITHUB_URL, VERSION } from "./seo/routes"
+export { HOME_FAQ } from "./content/faq"

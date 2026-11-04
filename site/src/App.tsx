@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react"
 import { Route, Routes } from "react-router-dom"
 import { SiteFooter } from "@/components/SiteFooter"
 import { RouteScroll } from "@/components/RouteScroll"
+import { TitleSync } from "@/components/TitleSync"
 import { SiteNav } from "@/components/SiteNav"
 import Home from "@/pages/Home"
 
@@ -11,6 +12,14 @@ const Compare = lazy(() => import("@/pages/Compare"))
 const ExactCache = lazy(() => import("@/pages/compare/ExactCache"))
 const WordOverlap = lazy(() => import("@/pages/compare/WordOverlap"))
 const AlwaysCall = lazy(() => import("@/pages/compare/AlwaysCall"))
+const GPTCache = lazy(() => import("@/pages/compare/GPTCache"))
+const LiteLLMCache = lazy(() => import("@/pages/compare/LiteLLMCache"))
+const RedisSemanticCache = lazy(() => import("@/pages/compare/RedisSemanticCache"))
+const GatewayCaches = lazy(() => import("@/pages/compare/GatewayCaches"))
+const SemanticCaching = lazy(() => import("@/pages/guides/SemanticCaching"))
+const PromptVsResponse = lazy(() => import("@/pages/guides/PromptVsResponse"))
+const Integrations = lazy(() => import("@/pages/Integrations"))
+const Benchmark = lazy(() => import("@/pages/Benchmark"))
 
 function PageFallback() {
   return (
@@ -31,6 +40,7 @@ export default function App() {
       </a>
       <div className="grain" aria-hidden />
       <RouteScroll />
+      <TitleSync />
       <SiteNav />
       <Suspense fallback={<PageFallback />}>
         <Routes>
@@ -41,6 +51,14 @@ export default function App() {
           <Route path="/compare/exact-cache" element={<ExactCache />} />
           <Route path="/compare/word-overlap" element={<WordOverlap />} />
           <Route path="/compare/always-call" element={<AlwaysCall />} />
+          <Route path="/compare/gptcache" element={<GPTCache />} />
+          <Route path="/compare/litellm-cache" element={<LiteLLMCache />} />
+          <Route path="/compare/redis-semantic-cache" element={<RedisSemanticCache />} />
+          <Route path="/compare/gateway-caches" element={<GatewayCaches />} />
+          <Route path="/guides/semantic-caching" element={<SemanticCaching />} />
+          <Route path="/guides/prompt-caching-vs-response-caching" element={<PromptVsResponse />} />
+          <Route path="/integrations" element={<Integrations />} />
+          <Route path="/benchmark" element={<Benchmark />} />
         </Routes>
       </Suspense>
       <SiteFooter />
