@@ -51,6 +51,16 @@ describe("adjudicator factory", () => {
     expect(resolveAdjudicatorKind(tmpCfg({ adjudicator: "mock" }))).toBe("mock");
   });
 
+  it("ADJUDICATOR=none|off → exact-only even with an OpenRouter key", async () => {
+    for (const adjudicator of ["none", "off", "NONE"]) {
+      const cfg = tmpCfg({ adjudicator, openrouterApiKey: "sk-or-x" });
+      expect(resolveAdjudicatorKind(cfg)).toBe("none");
+      expect(adjudicatorReady(cfg)).toBe(false);
+    }
+    const adj = createAdjudicator(tmpCfg({ adjudicator: "none", openrouterApiKey: "sk-or-x" }));
+    expect(adj.name).toBe("none");
+  });
+
   it("laya / kev resolve as System One kinds (no silent Jev)", () => {
     expect(resolveAdjudicatorKind(tmpCfg({ adjudicator: "laya" }))).toBe("laya");
     expect(resolveAdjudicatorKind(tmpCfg({ adjudicator: "kev" }))).toBe("kev");

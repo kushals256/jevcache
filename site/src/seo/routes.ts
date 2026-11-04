@@ -9,7 +9,7 @@ export const SITE_NAME = "MorrowCache"
 export const NPM_PACKAGE = "@kushalicious/jevcache"
 export const NPM_URL = "https://www.npmjs.com/package/@kushalicious/jevcache"
 export const GITHUB_URL = "https://github.com/kushals256/jevcache"
-export const VERSION = "2.0.1"
+export const VERSION = "2.0.2"
 
 export type RouteMeta = {
   path: string

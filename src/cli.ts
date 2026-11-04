@@ -56,6 +56,13 @@ function hasFlag(name: string): boolean {
   return process.argv.slice(2).some((a) => a === name || a === `--${name}`);
 }
 
+/** Value of a `--name=value` flag, or undefined. */
+function flagValue(name: string): string | undefined {
+  const prefix = `--${name}=`;
+  const hit = process.argv.slice(2).find((a) => a.startsWith(prefix));
+  return hit ? hit.slice(prefix.length) : undefined;
+}
+
 function printHelp(): void {
   console.log(`MorrowCache 2.0 (jevcache) — skip the model on same-intent paraphrases and same-job final text. Never replays tool_calls.
 
@@ -67,6 +74,8 @@ Usage:
   jevcache doctor       Check keys / Node
   jevcache doctor --live  Also probe /healthz, adjudicator, and upstream
   jevcache status       Is the proxy up? hit rate / $ saved
+  jevcache verify       Against the running proxy: MISS, reworded ask, exact repeat HIT
+                        --model=<id>  --key-env=<VAR holding the API key in .env>
   jevcache open         Open /stats in your browser
   jevcache help         Show this help
 
@@ -110,14 +119,17 @@ function upsertEnvVars(filePath: string, vars: Record<string, string>): { create
 
 async function cmdInit(): Promise<void> {
   const dest = path.join(process.cwd(), ".env");
-  const port = process.env.PORT || "8080";
-  const host = process.env.HOST || "127.0.0.1";
-  const base = `http://${host}:${port}`;
   const example = path.join(ROOT, ".env.example");
   if (!fs.existsSync(dest) && fs.existsSync(example)) {
     fs.writeFileSync(dest, fs.readFileSync(example, "utf8"));
     console.log(`Wrote ${dest} from .env.example`);
   }
+  // Read the existing .env first so keys, PORT and UPSTREAM_BASE_URL already in the file
+  // are kept, not replaced with empty values or defaults.
+  loadDotEnv(dest);
+  const port = process.env.PORT || "8080";
+  const host = process.env.HOST || "127.0.0.1";
+  const base = `http://${host}:${port}`;
   const { created, updated } = upsertEnvVars(dest, {
     OPENAI_BASE_URL: `${base}/v1`,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY || "",
@@ -168,6 +180,10 @@ function printModeBanner(cfg: Config): void {
   const kind = resolveAdjudicatorKind(cfg);
   const ready = adjudicatorReady(cfg);
   console.log(`  ${c.dim}Adj${c.reset}     ${adjudicatorBanner(cfg)}`);
+  if (kind === "none") {
+    console.log(`  ${c.green}Mode${c.reset}    exact cache only (ADJUDICATOR=none). Reworded prompts go to the model.`);
+    return;
+  }
   if (kind === "mock" || cfg.mockJev) {
     console.log(`  ${c.yellow}Mode${c.reset}    MOCK adjudicator — synthetic same-intent (dev only)`);
     return;
@@ -191,6 +207,88 @@ function printModeBanner(cfg: Config): void {
   }
   console.log(`  ${c.yellow}╚══════════════════════════════════════════════════════════╝${c.reset}`);
   console.log("");
+}
+
+/**
+ * Prove the cache works against the running proxy: a question (MISS), the same question
+ * reworded (HIT if the judge admits), then the original again byte for byte (exact HIT).
+ * Reads the API key from .env itself and never prints it.
+ */
+async function cmdVerify(): Promise<void> {
+  loadDotEnv(path.join(process.cwd(), ".env"));
+  const cfg = loadConfig();
+  const base = `http://${cfg.host}:${cfg.port}`;
+  const model = flagValue("model") || process.env.DEMO_MODEL || "openai/gpt-4o-mini";
+  const keyEnv = flagValue("key-env");
+  const key = keyEnv
+    ? process.env[keyEnv] || ""
+    : cfg.upstreamApiKey ||
+      process.env.OPENROUTER_API_KEY ||
+      process.env.OPENAI_API_KEY ||
+      "";
+
+  console.log("MorrowCache verify");
+  try {
+    const health = await fetch(`${base}/healthz`, { signal: AbortSignal.timeout(2500) });
+    if (!health.ok) throw new Error(`HTTP ${health.status}`);
+  } catch {
+    console.log(`  running   ${mark(false)}  not reachable at ${base}`);
+    console.log(`  ${c.dim}→ start it first: jevcache start${c.reset}`);
+    process.exitCode = 1;
+    return;
+  }
+  if (!key && !cfg.mockUpstream) {
+    console.log(`  api key   ${mark(false)}  none found${keyEnv ? ` in ${keyEnv}` : ""}`);
+    console.log(`  ${c.dim}→ pass --key-env=<the variable your app reads its key from>${c.reset}`);
+    process.exitCode = 1;
+    return;
+  }
+  console.log(`  proxy     ${base}   model ${model}   key ${key ? `from ${keyEnv || "env"} (hidden)` : "mock"}`);
+
+  // A per-run tag keeps earlier runs from turning the first request into a hit.
+  const tag = Math.random().toString(36).slice(2, 6);
+  const question = `In one sentence, what is a mutex? (check ${tag})`;
+  const steps = [
+    { label: "1 question", content: question, expect: "MISS" },
+    { label: "2 reworded", content: `What is a mutex? Answer in one sentence. (check ${tag})`, expect: "HIT if the judge admits" },
+    { label: "3 repeat  ", content: question, expect: "HIT (exact)" },
+  ];
+  const results: string[] = [];
+  for (const step of steps) {
+    const t0 = Date.now();
+    try {
+      const res = await fetch(`${base}/v1/chat/completions`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key || "mock"}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model, temperature: 0, messages: [{ role: "user", content: step.content }] }),
+      });
+      const cache = res.headers.get("X-Jevcache") ?? "?";
+      const tier = res.headers.get("X-Jevcache-Tier");
+      const reason = res.headers.get("X-Jevcache-Reason");
+      const extra = [tier && tier !== "none" ? `tier ${tier}` : "", reason ? `reason ${reason}` : ""]
+        .filter(Boolean)
+        .join(", ");
+      results.push(cache);
+      console.log(
+        `  ${step.label}  X-Jevcache: ${cache}${extra ? ` (${extra})` : ""}  ${Date.now() - t0}ms  · expected ${step.expect}`,
+      );
+      if (!res.ok) {
+        const body = (await res.text()).replace(/\s+/g, " ").slice(0, 200);
+        console.log(`    HTTP ${res.status}: ${body}`);
+      }
+    } catch (e) {
+      results.push("error");
+      console.log(`  ${step.label}  error: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  const ok = results[0] === "MISS" && results[2] === "HIT";
+  console.log(
+    ok
+      ? `  result    ${mark(true)}  cache works${results[1] === "HIT" ? ", and the reworded ask hit too" : "; the reworded ask missed (the judge is conservative, or exact-only)"}`
+      : `  result    ${mark(false)}  expected MISS then an exact HIT`,
+  );
+  console.log(`  ${c.dim}stats: ${base}/stats${c.reset}`);
+  if (!ok) process.exitCode = 1;
 }
 
 async function cmdStatus(): Promise<void> {
@@ -255,6 +353,8 @@ async function cmdStatus(): Promise<void> {
 async function ensureKeysInteractive(): Promise<void> {
   loadDotEnv(path.join(process.cwd(), ".env"));
   const cfgPeek = loadConfig();
+  // Exact-only by choice → no judge key needed
+  if (resolveAdjudicatorKind(cfgPeek) === "none") return;
   // Local System One ready → no OpenRouter key required for semantic admit
   if (adjudicatorReady(cfgPeek) && isSystemOneKind(resolveAdjudicatorKind(cfgPeek))) {
     return;
@@ -318,7 +418,7 @@ async function doctor(): Promise<void> {
   console.log("MorrowCache doctor");
   console.log(`  adjudicator         ${adjudicatorBanner(cfg)}`);
   console.log(
-    `  adj ready           ${ready ? mark(true) : mark(false) + (kind === "jev" ? " (need OPENROUTER_API_KEY)" : "")}`,
+    `  adj ready           ${kind === "none" ? c.dim + "off (exact-only by choice)" + c.reset : ready ? mark(true) : mark(false) + (kind === "jev" ? " (need OPENROUTER_API_KEY)" : "")}`,
   );
   if (kind === "jev") {
     console.log(`  OPENROUTER_API_KEY  ${hasOr ? mark(true) : mark(false) + " (needed for Jev)"}`);
@@ -648,6 +748,8 @@ if (cmd === "help" || cmd === "-h" || cmd === "--help") {
   await doctor();
 } else if (cmd === "status") {
   await cmdStatus();
+} else if (cmd === "verify") {
+  await cmdVerify();
 } else if (cmd === "open") {
   openStats();
 } else if (cmd === "start" || raw === undefined) {

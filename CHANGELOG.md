@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.2 — 2026-11-04
+- **Fix:** `jevcache init` no longer blanks keys already in `.env`. It now reads the existing file first, so `OPENAI_API_KEY`, `PORT`, `UPSTREAM_BASE_URL` and other values are kept.
+- **New:** `jevcache verify` sends a question, a reworded version and an exact repeat through the running proxy and prints only the `X-Jevcache` headers. Reads the key from `.env` (`--key-env=VAR`) and never prints it. `--model=<id>` picks the model.
+- **New:** `ADJUDICATOR=none` (or `off`) runs exact-only on purpose, even when `OPENROUTER_API_KEY` is set. No warning on start; `doctor` reports it as off by choice.
+
 ## 2.0.1 — 2026-11-04
 - No runtime changes. npm description, keywords and README links updated for search; README links to the new integrations, benchmark and comparison pages on the site.
 

@@ -47,6 +47,7 @@ Works with one script, one agent, or many — anything that speaks `/v1/chat/com
 | **Laya** (local) | `ADJUDICATOR=laya` | No — default `http://127.0.0.1:8000` |
 | **Laya MLX** | `ADJUDICATOR=laya-mlx` | No |
 | **Any System One** | `ADJUDICATOR=systemone` + URL + model | No (unless your server requires a key) |
+| **None** (exact-only) | `ADJUDICATOR=none` | No — only identical requests hit |
 
 ```bash
 # Local Kev — semantic hits without OpenRouter
@@ -241,6 +242,7 @@ npx @kushalicious/jevcache doctor --live     # + /healthz, Jev, upstream
 npx @kushalicious/jevcache start             # run proxy
 npx @kushalicious/jevcache start --demo      # live MISS → HIT
 npx @kushalicious/jevcache status            # running? hit rate / $ saved
+npx @kushalicious/jevcache verify --model=openai/gpt-4o-mini   # MISS → reworded → exact HIT, key stays hidden
 npx @kushalicious/jevcache open              # open /stats
 npx @kushalicious/jevcache help
 ```

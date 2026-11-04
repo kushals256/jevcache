@@ -17,6 +17,7 @@ export type AdjudicatorKind =
   | "kev"
   | "systemone"
   | "local"
+  | "none"
   | "unknown";
 
 const SYSTEM_ONE_KINDS = new Set<AdjudicatorKind>([
@@ -33,10 +34,11 @@ export function isSystemOneKind(kind: AdjudicatorKind): boolean {
 
 /**
  * Resolve backend. Default Jev. MOCK_JEV=1 or ADJUDICATOR=mock → mock.
- * Unknown kinds → "unknown" (no silent Jev fallback).
+ * ADJUDICATOR=none|off → exact-only by choice. Unknown kinds → "unknown" (no silent Jev fallback).
  */
 export function resolveAdjudicatorKind(cfg: Config): AdjudicatorKind {
   const raw = (cfg.adjudicator || "").toLowerCase().trim();
+  if (raw === "none" || raw === "off") return "none";
   if (raw === "mock" || cfg.mockJev) return "mock";
   if (raw === "jev" || !raw) return "jev";
   if (raw === "laya") return "laya";
@@ -118,6 +120,9 @@ export function createAdjudicator(cfg: Config): IntentAdjudicator {
 
   if (kind === "mock") return createMockAdjudicator();
 
+  // Exact-only by choice: no judge, no warning.
+  if (kind === "none") return createBrokenAdjudicator("none", "adjudicator_disabled");
+
   if (kind === "jev") {
     if (!cfg.openrouterApiKey.trim()) {
       return createBrokenAdjudicator("jev", "missing_openrouter_api_key");
@@ -163,6 +168,7 @@ export function createAdjudicator(cfg: Config): IntentAdjudicator {
 /** Short banner line: kind + host (no secrets). */
 export function adjudicatorBanner(cfg: Config): string {
   const kind = resolveAdjudicatorKind(cfg);
+  if (kind === "none") return "none (exact-only, ADJUDICATOR=none)";
   if (kind === "mock" || cfg.mockJev) return "mock (synthetic)";
   if (kind === "jev") {
     const host = cfg.adjudicatorUrl

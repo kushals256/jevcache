@@ -34,7 +34,7 @@ export default function GPTCache() {
           ["Agent retries", "Not a documented feature", "Turn cache: same prior turns plus same-intent latest ask"],
           ["Extra cost per check", "Local embedding", "A judge call (about $0.00002 with the cloud judge) or a local judge"],
           ["License", "MIT", "MIT"],
-          ["Release activity", "Last tagged release 0.1.44, August 2024", "2.0.1, November 2026"],
+          ["Release activity", "Last tagged release 0.1.44, August 2024", "2.0.2, November 2026"],
         ]}
       />
 

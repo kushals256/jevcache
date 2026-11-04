@@ -1,6 +1,6 @@
 {
   "name": "@kushalicious/jevcache",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "MorrowCache: open-source semantic cache for OpenAI-compatible LLM APIs. A local proxy that reuses answers for paraphrased prompts and AI agent retries. Fail-open; never replays tool calls.",
   "type": "module",
   "bin": {
