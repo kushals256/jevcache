@@ -1,13 +1,13 @@
 # MorrowCache
 
 [![npm](https://img.shields.io/npm/v/@kushalicious/jevcache.svg)](https://www.npmjs.com/package/@kushalicious/jevcache)
-[![npm downloads](https://img.shields.io/npm/dm/@kushalicious/jevcache.svg)](https://www.npmjs.com/package/@kushalicious/jevcache)
+[![npm downloads](https://img.shields.io/npm/dt/@kushalicious/jevcache.svg?label=downloads%20%28all%20time%29)](https://www.npmjs.com/package/@kushalicious/jevcache)
 [![Docker](https://img.shields.io/badge/ghcr.io-kushals256%2Fjevcache-blue)](https://github.com/kushals256/jevcache/pkgs/container/jevcache)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 **MorrowCache** — routers pick a model. This proxy decides whether to call one.
 
-npm package and CLI stay `@kushalicious/jevcache` / `jevcache` (download history unchanged). Site: [morrowcache.vercel.app](https://morrowcache.vercel.app).
+npm package and CLI stay `@kushalicious/jevcache` / `jevcache` (download history unchanged). Site: [morrowcache.vercel.app](https://morrowcache.vercel.app). Agent summary: https://morrowcache.vercel.app/llms.txt
 
 A local OpenAI-compatible **chat response cache**. **2.0 (Agent Turn Cache)** skips the model in two cases: the same question in different words, and an agent retrying the **same job** (same prior conversation, same-intent latest ask). It stores **final assistant text** only. A later stream of that answer can HIT. A response that contains `tool_calls` is returned and **never stored**.
 
