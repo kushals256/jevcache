@@ -1,0 +1,14 @@
+{
+  "name": "morrowcache",
+  "displayName": "MorrowCache",
+  "version": "1.0.0",
+  "description": "Add an LLM response cache to the app in your project. Sets up MorrowCache, a local OpenAI-compatible proxy that answers repeated or reworded questions from cache, then proves a MISS and a HIT. Caches your app's model calls, not Claude Code's.",
+  "author": {
+    "name": "Kushal S",
+    "url": "https://github.com/kushals256"
+  },
+  "homepage": "https://morrowcache.vercel.app",
+  "repository": "https://github.com/kushals256/jevcache",
+  "license": "MIT",
+  "keywords": ["llm-cache", "semantic-cache", "openai", "openrouter", "cost", "proxy"]
+}

@@ -114,7 +114,14 @@ llm = ChatOpenAI(
 
       <H2 id="agents">Coding agents</H2>
       <P>
-        To install MorrowCache into a project with Cursor, Claude Code or Codex, paste the{" "}
+        In Claude Code, install the plugin and run <code>/morrowcache:setup</code> in your project. It inspects how
+        your app calls a model, starts the proxy, changes the base URL with the smallest edit and runs{" "}
+        <code>jevcache verify</code> to show a MISS then a HIT. <code>/morrowcache:stats</code> explains the numbers.
+      </P>
+      <Pre label="Claude Code">{`/plugin marketplace add kushals256/jevcache
+/plugin install morrowcache@morrowcache`}</Pre>
+      <P>
+        In Cursor, Codex or any other coding agent, paste the{" "}
         <A href="/agent-setup">agent setup prompt</A>. The agent installs the proxy, writes <code>.env</code>, wires
         the base URL in your app and proves a MISS then a HIT. It caches your app&rsquo;s model calls, not the
         agent&rsquo;s own.

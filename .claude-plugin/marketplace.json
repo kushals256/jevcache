@@ -1,0 +1,18 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "morrowcache",
+  "description": "MorrowCache plugins for Claude Code.",
+  "owner": {
+    "name": "Kushal S",
+    "url": "https://github.com/kushals256"
+  },
+  "plugins": [
+    {
+      "name": "morrowcache",
+      "description": "Add an LLM response cache to the app in your project: installs MorrowCache, wires your OpenAI-compatible client and proves a MISS then a HIT. Caches your app's model calls, not Claude Code's.",
+      "source": "./plugins/morrowcache",
+      "category": "development",
+      "homepage": "https://morrowcache.vercel.app"
+    }
+  ]
+}

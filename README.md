@@ -99,6 +99,15 @@ See [`results/eval.json`](./results/eval.json). **Published honest number:** on 
 
 ---
 
+## Claude Code plugin
+
+```
+/plugin marketplace add kushals256/jevcache
+/plugin install morrowcache@morrowcache
+```
+
+Then run `/morrowcache:setup` in your project: Claude inspects how your app calls a model, starts the proxy, wires the base URL with the smallest change and runs `jevcache verify` to show MISS then HIT. `/morrowcache:stats` explains hit rate and savings. It caches your app's model calls, not Claude Code's own. Source: [`plugins/morrowcache`](./plugins/morrowcache).
+
 ## Easiest path: paste into Cursor (or any coding agent)
 
 **Open a new agent chat → copy the whole block below → send.**  
