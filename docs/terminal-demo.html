@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>MorrowCache — Live Terminal Demo</title>
+    <style>
+      @font-face {
+        font-family: "GeistPixelSquare";
+        src: url("../site/public/fonts/GeistPixel-Square.woff2") format("woff2");
+        font-weight: 500;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "Geist";
+        src: url("../site/public/fonts/Geist-Variable.woff2") format("woff2");
+        font-weight: 100 900;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "GeistMono";
+        src: url("../site/public/fonts/GeistMono-Variable.woff2") format("woff2");
+        font-weight: 100 900;
+        font-display: block;
+      }
+      :root {
+        --ink: #050505;
+        --panel: #0d0d0c;
+        --bone: #f3f3ef;
+        --body: #c4c4bd;
+        --muted: #85857f;
+        --hit: #94b8ff;
+        --pink: #ffb6d0;
+        --green: #50dc8c;
+        --line: rgba(243, 243, 239, 0.09);
+        --line-strong: rgba(243, 243, 239, 0.17);
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        width: 1200px;
+        height: 520px;
+        background: var(--ink);
+        color: var(--bone);
+        font-family: "Geist", system-ui, sans-serif;
+        padding: 34px 44px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        -webkit-font-smoothing: antialiased;
+        position: relative;
+        overflow: hidden;
+      }
+      body::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(ellipse 60% 60% at 50% 50%, rgba(148, 184, 255, 0.08), transparent 75%),
+          radial-gradient(circle at 1px 1px, rgba(243, 243, 239, 0.04) 1px, transparent 0) 0 0 / 24px 24px,
+          var(--ink);
+        pointer-events: none;
+      }
+
+      /* Hash columns on far edges */
+      .hash-col {
+        position: absolute;
+        top: 24px;
+        bottom: 24px;
+        display: flex;
+        gap: 5px;
+        pointer-events: none;
+        opacity: 0.4;
+      }
+      .hash-col.left { left: 16px; }
+      .hash-col.right { right: 16px; }
+      .hash-bar {
+        width: 4px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .hash-cell {
+        width: 100%;
+        height: 4px;
+        border-radius: 1px;
+      }
+
+      .header {
+        position: relative;
+        z-index: 10;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 14px;
+      }
+      .tag {
+        font-family: "GeistMono", monospace;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--hit);
+      }
+      .title {
+        font-family: "GeistPixelSquare", monospace;
+        font-size: 26px;
+        color: #ffffff;
+        margin-top: 4px;
+        letter-spacing: -0.01em;
+      }
+      .meta {
+        font-family: "GeistMono", monospace;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .meta span {
+        color: var(--hit);
+      }
+
+      /* Terminal Window */
+      .terminal-frame {
+        position: relative;
+        z-index: 5;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        box-shadow: 0 4px 28px rgba(0, 0, 0, 0.45);
+        height: 360px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .terminal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--line);
+        padding: 10px 18px;
+        font-family: "GeistMono", monospace;
+        font-size: 12px;
+        background: rgba(243, 243, 239, 0.02);
+      }
+      .window-dots {
+        display: flex;
+        gap: 7px;
+      }
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
+      .dot.red { background: #ff5f56; }
+      .dot.yellow { background: #ffbd2e; }
+      .dot.green { background: #27c93f; }
+
+      .term-title {
+        color: var(--muted);
+      }
+      .term-badge {
+        background: rgba(148, 184, 255, 0.15);
+        color: var(--hit);
+        border: 1px solid rgba(148, 184, 255, 0.3);
+        padding: 2px 7px;
+        border-radius: 3px;
+        font-size: 11px;
+      }
+
+      .terminal-body {
+        padding: 24px 28px;
+        font-family: "GeistMono", monospace;
+        font-size: 14px;
+        line-height: 1.7;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .cmd-line {
+        color: #ffffff;
+        font-weight: 500;
+      }
+      .cmd-line span {
+        color: var(--hit);
+      }
+      .info-line {
+        color: var(--muted);
+      }
+      .log-line {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .badge-miss {
+        background: rgba(255, 182, 208, 0.15);
+        color: var(--pink);
+        padding: 1px 7px;
+        border-radius: 2px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .badge-hit {
+        background: var(--hit);
+        color: var(--ink);
+        padding: 1px 7px;
+        border-radius: 2px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .time-miss {
+        color: var(--muted);
+      }
+      .time-hit {
+        color: var(--hit);
+        font-weight: 500;
+      }
+
+      .session-bar {
+        border-top: 1px dashed var(--line);
+        padding-top: 12px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .session-bar strong {
+        color: var(--green);
+      }
+
+      /* Footer */
+      .footer-lockup {
+        position: relative;
+        z-index: 10;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px solid var(--line);
+        padding-top: 12px;
+        font-family: "GeistMono", monospace;
+        font-size: 11.5px;
+        color: var(--muted);
+      }
+      .footer-lockup span {
+        color: var(--bone);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Decorative Hash Columns -->
+    <div class="hash-col left" id="hashLeft"></div>
+    <div class="hash-col right" id="hashRight"></div>
+
+    <div class="header">
+      <div>
+        <div class="tag">CLI Proof</div>
+        <h2 class="title">Live MISS &rarr; HIT Verification</h2>
+      </div>
+      <div class="meta">
+        No OpenRouter key needed: <span>ADJUDICATOR=kev or start --demo</span>
+      </div>
+    </div>
+
+    <div class="terminal-frame">
+      <div class="terminal-header">
+        <div class="window-dots">
+          <div class="dot red"></div>
+          <div class="dot yellow"></div>
+          <div class="dot green"></div>
+        </div>
+        <div class="term-title">jevcache &bull; start --demo</div>
+        <div class="term-badge">localhost:8080</div>
+      </div>
+
+      <div class="terminal-body">
+        <div>
+          <div class="cmd-line"><span>$</span> npx @kushalicious/jevcache@latest start --demo</div>
+          <div class="info-line" style="margin-top: 6px;">&rarr; proxy listening on http://127.0.0.1:8080/v1</div>
+          <div class="info-line">&rarr; adjudicator: TypeSafe Jev (OpenRouter Decisions API)</div>
+          <div class="info-line">&rarr; storage: node:sqlite (Node 22.5 built-in, zero native compile)</div>
+        </div>
+
+        <div style="margin: 10px 0; display: flex; flex-direction: column; gap: 8px;">
+          <div class="log-line">
+            <span class="badge-miss">MISS</span>
+            <span style="color: var(--bone);">"Explain mutexes simply please"</span>
+            <span class="time-miss">(3244ms &bull; calls model, stores answer)</span>
+          </div>
+          <div class="log-line">
+            <span class="badge-hit">HIT</span>
+            <span style="color: var(--bone);">"Please explain mutexes simply"</span>
+            <span class="time-hit">(394ms &bull; intent: 0.94 &bull; saved $0.000137)</span>
+          </div>
+        </div>
+
+        <div class="session-bar">
+          Session: 1 HIT / 2 requests &bull; <strong>6.7&times; speedup (−88% latency)</strong> &bull; 0 tool replays
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-lockup">
+      <div><span>Works with any OpenAI client:</span> Set <code>OPENAI_BASE_URL=http://127.0.0.1:8080/v1</code></div>
+      <div>Open dashboard anytime with <code>jevcache open</code></div>
+    </div>
+
+    <script>
+      const colors = ["#94b8ff", "#ffb6d0", "#c4c4bd", "#0d0d0c", "#161614", "#85857f"];
+      function makeCol(container) {
+        for (let c = 0; c < 2; c++) {
+          const col = document.createElement("div");
+          col.className = "hash-bar";
+          for (let r = 0; r < 30; r++) {
+            const cell = document.createElement("div");
+            cell.className = "hash-cell";
+            const colIdx = Math.floor(Math.random() * colors.length);
+            cell.style.backgroundColor = colors[colIdx];
+            cell.style.opacity = Math.random() > 0.3 ? (0.2 + Math.random() * 0.5) : "0";
+            col.appendChild(cell);
+          }
+          container.appendChild(col);
+        }
+      }
+      makeCol(document.getElementById("hashLeft"));
+      makeCol(document.getElementById("hashRight"));
+    </script>
+  </body>
+</html>

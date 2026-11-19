@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>MorrowCache — Propose ≠ Admit</title>
+    <style>
+      @font-face {
+        font-family: "GeistPixelSquare";
+        src: url("../site/public/fonts/GeistPixel-Square.woff2") format("woff2");
+        font-weight: 500;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "Geist";
+        src: url("../site/public/fonts/Geist-Variable.woff2") format("woff2");
+        font-weight: 100 900;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "GeistMono";
+        src: url("../site/public/fonts/GeistMono-Variable.woff2") format("woff2");
+        font-weight: 100 900;
+        font-display: block;
+      }
+      :root {
+        --ink: #050505;
+        --panel: #0d0d0c;
+        --bone: #f3f3ef;
+        --body: #c4c4bd;
+        --muted: #85857f;
+        --hit: #94b8ff;
+        --pink: #ffb6d0;
+        --line: rgba(243, 243, 239, 0.09);
+        --line-strong: rgba(243, 243, 239, 0.17);
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        width: 1200px;
+        height: 520px;
+        background: var(--ink);
+        color: var(--bone);
+        font-family: "Geist", system-ui, sans-serif;
+        padding: 38px 48px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        -webkit-font-smoothing: antialiased;
+        position: relative;
+        overflow: hidden;
+      }
+      body::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(ellipse 60% 60% at 50% 50%, rgba(148, 184, 255, 0.09), transparent 70%),
+          radial-gradient(circle at 1px 1px, rgba(243, 243, 239, 0.04) 1px, transparent 0) 0 0 / 24px 24px,
+          var(--ink);
+        pointer-events: none;
+      }
+
+      /* Hash columns on far edges */
+      .hash-col {
+        position: absolute;
+        top: 24px;
+        bottom: 24px;
+        display: flex;
+        gap: 5px;
+        pointer-events: none;
+        opacity: 0.4;
+      }
+      .hash-col.left { left: 16px; }
+      .hash-col.right { right: 16px; }
+      .hash-bar {
+        width: 4px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .hash-cell {
+        width: 100%;
+        height: 4px;
+        border-radius: 1px;
+      }
+
+      .header {
+        position: relative;
+        z-index: 10;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 14px;
+      }
+      .tag {
+        font-family: "GeistMono", monospace;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--hit);
+      }
+      .title {
+        font-family: "GeistPixelSquare", monospace;
+        font-size: 26px;
+        color: #ffffff;
+        margin-top: 4px;
+        letter-spacing: -0.01em;
+      }
+      .meta {
+        font-family: "GeistMono", monospace;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .meta span {
+        color: var(--hit);
+      }
+
+      /* Stage with two big panels */
+      .stage {
+        position: relative;
+        z-index: 5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 36px;
+        height: 360px;
+      }
+
+      .win {
+        width: 460px;
+        height: 280px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+        position: relative;
+        overflow: hidden;
+      }
+      .win.highlight {
+        border-color: rgba(148, 184, 255, 0.45);
+        box-shadow: 0 0 45px rgba(148, 184, 255, 0.12);
+      }
+      .win-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--line);
+        padding: 10px 18px;
+        font-family: "GeistMono", monospace;
+        font-size: 11.5px;
+      }
+      .win-body {
+        padding: 28px 24px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        flex: 1;
+      }
+
+      .role-label {
+        font-family: "GeistMono", monospace;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .big-word {
+        font-family: "GeistPixelSquare", monospace;
+        font-size: 48px;
+        line-height: 1;
+        letter-spacing: -0.02em;
+        margin: 12px 0 6px 0;
+      }
+      .word-bone { color: var(--bone); }
+      .word-blue { color: var(--hit); }
+
+      .action-sub {
+        font-family: "GeistMono", monospace;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .action-sub strong {
+        color: var(--bone);
+      }
+
+      .win-footer-pill {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px solid var(--line);
+        padding-top: 14px;
+        font-family: "GeistMono", monospace;
+        font-size: 11.5px;
+      }
+      .badge-dim {
+        border: 1px solid var(--line-strong);
+        color: var(--body);
+        padding: 3px 8px;
+        border-radius: 2px;
+      }
+      .badge-hit {
+        background: rgba(148, 184, 255, 0.2);
+        border: 1px solid rgba(148, 184, 255, 0.4);
+        color: var(--hit);
+        padding: 3px 8px;
+        border-radius: 2px;
+        font-weight: 500;
+      }
+
+      /* Glowing arrow between */
+      .arrow-bridge {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+      }
+      .arrow-svg {
+        width: 54px;
+        height: 24px;
+      }
+      .bridge-label {
+        font-family: "GeistMono", monospace;
+        font-size: 10px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--hit);
+      }
+
+      /* Bottom Footer Lockup */
+      .footer-lockup {
+        position: relative;
+        z-index: 10;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px solid var(--line);
+        padding-top: 12px;
+        font-family: "GeistMono", monospace;
+        font-size: 11.5px;
+        color: var(--muted);
+      }
+      .footer-lockup span {
+        color: var(--bone);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Decorative Hash Columns -->
+    <div class="hash-col left" id="hashLeft"></div>
+    <div class="hash-col right" id="hashRight"></div>
+
+    <div class="header">
+      <div>
+        <div class="tag">MorrowCache Core Principle</div>
+        <h2 class="title">propose &ne; admit</h2>
+      </div>
+      <div class="meta">
+        Two-stage evaluation: <span>shortlist proposes, adjudicator admits</span>
+      </div>
+    </div>
+
+    <div class="stage">
+      <!-- Window 1: Shortlist Proposes -->
+      <div class="win">
+        <div class="win-header">
+          <span style="color: var(--bone);">STAGE 1</span>
+          <span style="color: var(--muted);">proposer</span>
+        </div>
+        <div class="win-body">
+          <div>
+            <div class="role-label">SHORTLIST</div>
+            <div class="big-word word-bone">proposes</div>
+            <div class="action-sub">recency floor + <strong>Jaccard fill</strong></div>
+          </div>
+          <div class="win-footer-pill">
+            <span style="color: var(--muted);">Candidate K = 5</span>
+            <span class="badge-dim">Top-K candidates</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Arrow Bridge -->
+      <div class="arrow-bridge">
+        <svg class="arrow-svg" viewBox="0 0 54 24" fill="none">
+          <path d="M 4 12 L 44 12" stroke="#94b8ff" stroke-width="2.5" stroke-linecap="round" />
+          <path d="M 38 6 L 46 12 L 38 18" stroke="#94b8ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span class="bridge-label">admit-v2</span>
+      </div>
+
+      <!-- Window 2: Adjudicator Admits -->
+      <div class="win highlight">
+        <div class="win-header">
+          <span style="color: var(--hit);">STAGE 2</span>
+          <span style="color: var(--hit);">calibrated judge</span>
+        </div>
+        <div class="win-body">
+          <div>
+            <div class="role-label" style="color: var(--hit);">ADJUDICATOR</div>
+            <div class="big-word word-blue">admits</div>
+            <div class="action-sub">same intent &bull; <strong>or miss</strong></div>
+          </div>
+          <div class="win-footer-pill">
+            <span style="color: var(--muted);">Jev / Kev / Laya</span>
+            <span class="badge-hit">0.00 False Positive Rate</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-lockup">
+      <div><span>Vector caches stop at Stage 1</span> (serving 49% false hits on negation/entity traps). MorrowCache always requires Stage 2.</div>
+      <div>Fail-open on timeout</div>
+    </div>
+
+    <script>
+      const colors = ["#94b8ff", "#ffb6d0", "#c4c4bd", "#0d0d0c", "#161614", "#85857f"];
+      function makeCol(container) {
+        for (let c = 0; c < 2; c++) {
+          const col = document.createElement("div");
+          col.className = "hash-bar";
+          for (let r = 0; r < 30; r++) {
+            const cell = document.createElement("div");
+            cell.className = "hash-cell";
+            const colIdx = Math.floor(Math.random() * colors.length);
+            cell.style.backgroundColor = colors[colIdx];
+            cell.style.opacity = Math.random() > 0.3 ? (0.2 + Math.random() * 0.5) : "0";
+            col.appendChild(cell);
+          }
+          container.appendChild(col);
+        }
+      }
+      makeCol(document.getElementById("hashLeft"));
+      makeCol(document.getElementById("hashRight"));
+    </script>
+  </body>
+</html>

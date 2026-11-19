@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>MorrowCache — Arc Architecture</title>
+    <style>
+      @font-face {
+        font-family: "PixelSquare";
+        src: url("../../site/public/fonts/GeistPixel-Square.woff2") format("woff2");
+        font-weight: 500;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "Geist";
+        src: url("../../site/public/fonts/Geist-Variable.woff2") format("woff2");
+        font-weight: 100 900;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "GeistMono";
+        src: url("../../site/public/fonts/GeistMono-Variable.woff2") format("woff2");
+        font-weight: 100 900;
+        font-display: block;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        width: 1200px;
+        height: 600px;
+        background: #07080b;
+        color: #f3f3ef;
+        font-family: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        padding: 36px 44px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        -webkit-font-smoothing: antialiased;
+        position: relative;
+        overflow: hidden;
+      }
+      body::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: 
+          radial-gradient(circle at 50% 30%, rgba(107, 163, 255, 0.08), transparent 70%),
+          linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+        background-size: 100% 100%, 32px 32px, 32px 32px;
+        pointer-events: none;
+      }
+
+      .header {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+      }
+      .title-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .tag {
+        font-family: "GeistMono", monospace;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #6ba3ff;
+      }
+      .title {
+        font-size: 26px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        color: #ffffff;
+      }
+      .legend {
+        display: flex;
+        gap: 16px;
+        font-family: "GeistMono", monospace;
+        font-size: 11.5px;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: #9296a4;
+      }
+      .dot-blue {
+        width: 8px;
+        height: 8px;
+        background: #6ba3ff;
+        border-radius: 50%;
+        box-shadow: 0 0 8px #6ba3ff;
+      }
+      .dot-amber {
+        width: 8px;
+        height: 8px;
+        background: #f0a45c;
+        border-radius: 50%;
+        box-shadow: 0 0 8px #f0a45c;
+      }
+
+      /* Architecture Canvas / Diagram Area */
+      .canvas-wrap {
+        position: relative;
+        z-index: 2;
+        width: 100%;
+        height: 460px;
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        background: rgba(11, 13, 18, 0.75);
+        border-radius: 8px;
+        backdrop-filter: blur(8px);
+        display: grid;
+        grid-template-columns: 290px 1fr 270px;
+        padding: 24px;
+        gap: 16px;
+      }
+
+      /* Left: Inputs */
+      .input-column {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        justify-content: center;
+      }
+      .input-box {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        border-radius: 5px;
+        padding: 12px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .input-box.highlight {
+        border-color: rgba(107, 163, 255, 0.4);
+        background: rgba(107, 163, 255, 0.06);
+      }
+      .input-type {
+        font-family: "GeistMono", monospace;
+        font-size: 10.5px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      .type-blue { color: #94b8ff; }
+      .type-white { color: #f3f3ef; }
+      .type-amber { color: #f0a45c; }
+      .input-text {
+        font-family: "GeistMono", monospace;
+        font-size: 12.5px;
+        color: #ffffff;
+      }
+
+      /* Center: The Core Routing Arch */
+      .center-routing {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 10px;
+      }
+      .arch-svg-overlay {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+      
+      .adjudicator-badge {
+        position: absolute;
+        top: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(17, 24, 39, 0.95);
+        border: 1px solid rgba(107, 163, 255, 0.5);
+        box-shadow: 0 0 25px rgba(107, 163, 255, 0.2);
+        padding: 10px 18px;
+        border-radius: 6px;
+        text-align: center;
+        z-index: 5;
+      }
+      .adj-title {
+        font-family: "GeistMono", monospace;
+        font-size: 11px;
+        color: #94b8ff;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .adj-desc {
+        font-family: "Geist", sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        color: #ffffff;
+        margin-top: 2px;
+      }
+      .adj-sub {
+        font-size: 11px;
+        color: #7e8494;
+        margin-top: 2px;
+      }
+
+      .model-core {
+        position: absolute;
+        bottom: 50px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(22, 24, 30, 0.85);
+        border: 1px dashed rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+        padding: 16px 22px;
+        text-align: center;
+        width: 250px;
+        z-index: 5;
+      }
+      .model-core s {
+        color: #7b808e;
+        font-family: "GeistMono", monospace;
+        font-size: 12px;
+      }
+      .model-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #ffffff;
+        margin-top: 4px;
+      }
+      .model-note {
+        font-size: 11px;
+        color: #8c909e;
+        margin-top: 2px;
+      }
+
+      /* Right: Outputs */
+      .output-column {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 15px 0;
+      }
+      .output-card {
+        border-radius: 6px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .out-hit {
+        background: rgba(107, 163, 255, 0.08);
+        border: 1px solid rgba(107, 163, 255, 0.45);
+        box-shadow: 0 0 30px rgba(107, 163, 255, 0.12);
+      }
+      .out-miss {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .out-tag {
+        font-family: "GeistMono", monospace;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+      }
+      .out-tag.blue { color: #94b8ff; }
+      .out-tag.amber { color: #f0a45c; }
+      .out-speed {
+        font-family: "GeistMono", monospace;
+        font-size: 22px;
+        font-weight: 700;
+        color: #ffffff;
+      }
+      .out-desc {
+        font-size: 11.5px;
+        color: #9da1ae;
+        line-height: 1.4;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div class="title-group">
+        <span class="tag">MorrowCache Architecture</span>
+        <h2 class="title">The Arc of Intent: Skip The Model</h2>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="dot-blue"></div> Semantic Arc (HIT: 394ms)</div>
+        <div class="legend-item"><div class="dot-amber"></div> Fail-Open / Live Tool Call (3244ms)</div>
+      </div>
+    </div>
+
+    <div class="canvas-wrap">
+      <!-- Left Inputs -->
+      <div class="input-column">
+        <div class="input-box highlight">
+          <span class="input-type type-blue">Rephrased Prompt</span>
+          <span class="input-text">"mutexes, but explain simply?"</span>
+        </div>
+        <div class="input-box highlight">
+          <span class="input-type type-white">Agent Retried Job</span>
+          <span class="input-text">same prior turn + intent ask</span>
+        </div>
+        <div class="input-box">
+          <span class="input-type type-amber">Live Tool Execution</span>
+          <span class="input-text">tool_calls payload</span>
+        </div>
+      </div>
+
+      <!-- Center Routing & SVG Arch -->
+      <div class="center-routing">
+        <svg class="arch-svg-overlay" viewBox="0 0 500 400" fill="none">
+          <!-- Upper Arc (Hit-Blue) -->
+          <path d="M 10 110 C 120 10, 360 10, 480 80" stroke="#6ba3ff" stroke-width="2.5" stroke-linecap="round" />
+          <path d="M 10 170 C 100 40, 360 20, 480 80" stroke="#6ba3ff" stroke-width="1.8" stroke-linecap="round" opacity="0.65" />
+          <!-- Animated glow pulse circle on the arc -->
+          <circle cx="250" cy="30" r="4" fill="#ffffff">
+            <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite" />
+          </circle>
+
+          <!-- Lower Channel (Fail-Open / Upstream) -->
+          <path d="M 10 270 C 140 270, 160 310, 250 310 S 360 310, 480 310" stroke="#f0a45c" stroke-width="1.8" stroke-dasharray="4 4" stroke-linecap="round" opacity="0.75" />
+        </svg>
+
+        <!-- Adjudicator Junction Badge -->
+        <div class="adjudicator-badge">
+          <div class="adj-title">Adjudicator (Jev / Kev / Laya)</div>
+          <div class="adj-desc">Propose Shortlist &rarr; Same-Intent Admit</div>
+          <div class="adj-sub">Calibrated decision &bull; Unsure? Fail-open</div>
+        </div>
+
+        <!-- Skipped Model Core -->
+        <div class="model-core">
+          <s>Upstream Model Invocation</s>
+          <div class="model-title">Remote LLM Skipped</div>
+          <div class="model-note">Zero token cost &bull; Only called for MISS or tool_calls</div>
+        </div>
+      </div>
+
+      <!-- Right Outputs -->
+      <div class="output-column">
+        <div class="output-card out-hit">
+          <div class="out-tag blue">CACHE HIT</div>
+          <div class="out-speed">~394ms</div>
+          <div class="out-desc">
+            Stored final assistant text returned instantly. Upstream API untouched.
+          </div>
+        </div>
+
+        <div class="output-card out-miss">
+          <div class="out-tag amber">LIVE CALL</div>
+          <div class="out-speed">~3,244ms</div>
+          <div class="out-desc">
+            Model executed for cold miss or fresh tool call. Final text saved for next turn.
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

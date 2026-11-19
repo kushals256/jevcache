@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>MorrowCache — The Two Laws (Final Text vs Tool Calls)</title>
+    <style>
+      @font-face {
+        font-family: "GeistPixelSquare";
+        src: url("../site/public/fonts/GeistPixel-Square.woff2") format("woff2");
+        font-weight: 500;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "Geist";
+        src: url("../site/public/fonts/Geist-Variable.woff2") format("woff2");
+        font-weight: 100 900;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "GeistMono";
+        src: url("../site/public/fonts/GeistMono-Variable.woff2") format("woff2");
+        font-weight: 100 900;
+        font-display: block;
+      }
+      :root {
+        --ink: #050505;
+        --panel: #0d0d0c;
+        --bone: #f3f3ef;
+        --body: #c4c4bd;
+        --muted: #85857f;
+        --hit: #94b8ff;
+        --pink: #ffb6d0;
+        --line: rgba(243, 243, 239, 0.09);
+        --line-strong: rgba(243, 243, 239, 0.17);
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        width: 1200px;
+        height: 520px;
+        background: var(--ink);
+        color: var(--bone);
+        font-family: "Geist", system-ui, sans-serif;
+        padding: 38px 48px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        -webkit-font-smoothing: antialiased;
+        position: relative;
+        overflow: hidden;
+      }
+      body::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(ellipse 60% 60% at 50% 50%, rgba(148, 184, 255, 0.08), transparent 75%),
+          radial-gradient(circle at 1px 1px, rgba(243, 243, 239, 0.04) 1px, transparent 0) 0 0 / 24px 24px,
+          var(--ink);
+        pointer-events: none;
+      }
+
+      /* Hash columns on far edges */
+      .hash-col {
+        position: absolute;
+        top: 24px;
+        bottom: 24px;
+        display: flex;
+        gap: 5px;
+        pointer-events: none;
+        opacity: 0.4;
+      }
+      .hash-col.left { left: 16px; }
+      .hash-col.right { right: 16px; }
+      .hash-bar {
+        width: 4px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .hash-cell {
+        width: 100%;
+        height: 4px;
+        border-radius: 1px;
+      }
+
+      .header {
+        position: relative;
+        z-index: 10;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 14px;
+      }
+      .tag {
+        font-family: "GeistMono", monospace;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--hit);
+      }
+      .title {
+        font-family: "GeistPixelSquare", monospace;
+        font-size: 26px;
+        color: #ffffff;
+        margin-top: 4px;
+        letter-spacing: -0.01em;
+      }
+      .meta {
+        font-family: "GeistMono", monospace;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .meta span {
+        color: var(--hit);
+      }
+
+      /* Stage with two side-by-side law cards */
+      .stage {
+        position: relative;
+        z-index: 5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 36px;
+        height: 360px;
+      }
+
+      .win {
+        width: 490px;
+        height: 290px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+        position: relative;
+        overflow: hidden;
+      }
+      .win.hit-card {
+        border-color: rgba(148, 184, 255, 0.45);
+        box-shadow: 0 0 45px rgba(148, 184, 255, 0.12);
+      }
+      .win.never-card {
+        border-color: rgba(255, 182, 208, 0.25);
+      }
+      .win-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--line);
+        padding: 10px 18px;
+        font-family: "GeistMono", monospace;
+        font-size: 11.5px;
+      }
+      .win-body {
+        padding: 26px 24px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        flex: 1;
+      }
+
+      .law-subtitle {
+        font-family: "GeistMono", monospace;
+        font-size: 13px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 14px;
+      }
+      .law-subtitle strong {
+        color: var(--bone);
+      }
+
+      /* Giant Pills */
+      .giant-pill {
+        width: 100%;
+        height: 78px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "GeistPixelSquare", monospace;
+        font-size: 38px;
+        letter-spacing: 0.04em;
+        margin-bottom: 16px;
+      }
+      .pill-hit-glow {
+        background: #94b8ff;
+        color: #050505;
+        box-shadow: 0 0 35px rgba(148, 184, 255, 0.35);
+      }
+      .pill-never-amber {
+        background: rgba(255, 182, 208, 0.12);
+        border: 1px solid rgba(255, 182, 208, 0.35);
+        color: var(--pink);
+      }
+
+      .law-desc {
+        font-family: "GeistMono", monospace;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .law-desc strong {
+        color: var(--bone);
+      }
+
+      /* Footer */
+      .footer-lockup {
+        position: relative;
+        z-index: 10;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px solid var(--line);
+        padding-top: 12px;
+        font-family: "GeistMono", monospace;
+        font-size: 11.5px;
+        color: var(--muted);
+      }
+      .footer-lockup span {
+        color: var(--bone);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Decorative Hash Columns -->
+    <div class="hash-col left" id="hashLeft"></div>
+    <div class="hash-col right" id="hashRight"></div>
+
+    <div class="header">
+      <div>
+        <div class="tag">Agent Turn Cache 2.0</div>
+        <h2 class="title">The Two Strict Laws</h2>
+      </div>
+      <div class="meta">
+        Same prior + intent retry: <span>one gets reused, one never replays</span>
+      </div>
+    </div>
+
+    <div class="stage">
+      <!-- Law 1: Final Text HIT -->
+      <div class="win hit-card">
+        <div class="win-header">
+          <span style="color: var(--hit);">LAW 1</span>
+          <span style="color: var(--hit);">eligible to hit</span>
+        </div>
+        <div class="win-body">
+          <div class="law-subtitle">TARGET: <strong>FINAL ASSISTANT TEXT</strong></div>
+          <div class="giant-pill pill-hit-glow">HIT</div>
+          <div class="law-desc">
+            Can reuse &bull; <strong>including subsequent SSE streams</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Law 2: Tool Calls NEVER -->
+      <div class="win never-card">
+        <div class="win-header">
+          <span style="color: var(--pink);">LAW 2</span>
+          <span style="color: var(--pink);">never stored</span>
+        </div>
+        <div class="win-body">
+          <div class="law-subtitle">TARGET: <strong>tool_calls (AGENT TOOLS)</strong></div>
+          <div class="giant-pill pill-never-amber">NEVER</div>
+          <div class="law-desc">
+            Never stored &bull; <strong>never replayed</strong> (always executes live)
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-lockup">
+      <div><span>Why this matters:</span> Prevents agents from hallucinating stale git diffs or file edits across turns.</div>
+      <div>Turn Cache 2.0 &bull; Disable with <code>TURN_CACHE=off</code></div>
+    </div>
+
+    <script>
+      const colors = ["#94b8ff", "#ffb6d0", "#c4c4bd", "#0d0d0c", "#161614", "#85857f"];
+      function makeCol(container) {
+        for (let c = 0; c < 2; c++) {
+          const col = document.createElement("div");
+          col.className = "hash-bar";
+          for (let r = 0; r < 30; r++) {
+            const cell = document.createElement("div");
+            cell.className = "hash-cell";
+            const colIdx = Math.floor(Math.random() * colors.length);
+            cell.style.backgroundColor = colors[colIdx];
+            cell.style.opacity = Math.random() > 0.3 ? (0.2 + Math.random() * 0.5) : "0";
+            col.appendChild(cell);
+          }
+          container.appendChild(col);
+        }
+      }
+      makeCol(document.getElementById("hashLeft"));
+      makeCol(document.getElementById("hashRight"));
+    </script>
+  </body>
+</html>

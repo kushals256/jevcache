@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>MorrowCache — Performance & Precision Benchmark</title>
+    <style>
+      @font-face {
+        font-family: "PixelSquare";
+        src: url("../../site/public/fonts/GeistPixel-Square.woff2") format("woff2");
+        font-weight: 500;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "Geist";
+        src: url("../../site/public/fonts/Geist-Variable.woff2") format("woff2");
+        font-weight: 100 900;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "GeistMono";
+        src: url("../../site/public/fonts/GeistMono-Variable.woff2") format("woff2");
+        font-weight: 100 900;
+        font-display: block;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        width: 1200px;
+        height: 520px;
+        background: #060709;
+        color: #f3f3ef;
+        font-family: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        padding: 40px 48px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        -webkit-font-smoothing: antialiased;
+        position: relative;
+        overflow: hidden;
+      }
+      /* Subtle grid background */
+      body::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: 
+          linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        background-size: 32px 32px;
+        pointer-events: none;
+      }
+      .top-row {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+      }
+      .headline-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .tag {
+        font-family: "GeistMono", monospace;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #6ba3ff;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .tag::before {
+        content: "";
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        background: #6ba3ff;
+        border-radius: 50%;
+        box-shadow: 0 0 8px #6ba3ff;
+      }
+      .headline {
+        font-family: "Geist", sans-serif;
+        font-size: 28px;
+        font-weight: 600;
+        letter-spacing: -0.03em;
+        color: #ffffff;
+      }
+      .meta-chip {
+        font-family: "GeistMono", monospace;
+        font-size: 12px;
+        color: #7d828f;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 5px 12px;
+        border-radius: 4px;
+      }
+
+      /* 3 Columns container */
+      .benchmark-grid {
+        position: relative;
+        z-index: 2;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        margin-top: 24px;
+      }
+      .metric-card {
+        background: rgba(14, 16, 22, 0.75);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        padding: 26px 24px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 290px;
+        position: relative;
+        backdrop-filter: blur(10px);
+      }
+      .metric-card::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 20px;
+        right: 20px;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+      }
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        padding-bottom: 12px;
+      }
+      .card-label {
+        font-family: "GeistMono", monospace;
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #8f95a5;
+      }
+      .card-badge {
+        font-family: "GeistMono", monospace;
+        font-size: 11px;
+        padding: 2px 7px;
+        border-radius: 3px;
+      }
+      .badge-blue {
+        background: rgba(107, 163, 255, 0.15);
+        color: #94b8ff;
+        border: 1px solid rgba(107, 163, 255, 0.3);
+      }
+      .badge-green {
+        background: rgba(80, 220, 140, 0.12);
+        color: #50dc8c;
+        border: 1px solid rgba(80, 220, 140, 0.28);
+      }
+      .badge-amber {
+        background: rgba(240, 164, 92, 0.15);
+        color: #f0a45c;
+        border: 1px solid rgba(240, 164, 92, 0.3);
+      }
+
+      .big-stat {
+        font-family: "GeistMono", monospace;
+        font-size: 46px;
+        font-weight: 700;
+        letter-spacing: -0.04em;
+        line-height: 1;
+        margin: 18px 0 6px 0;
+        color: #ffffff;
+      }
+      .stat-highlight {
+        color: #6ba3ff;
+      }
+      .sub-stat {
+        font-family: "Geist", sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        color: #e2e4ec;
+        margin-bottom: 14px;
+      }
+
+      /* Visual comparison bars / indicators */
+      .bar-group {
+        margin: 10px 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .bar-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: "GeistMono", monospace;
+        font-size: 11px;
+      }
+      .bar-name {
+        width: 68px;
+        color: #7b808e;
+      }
+      .bar-track {
+        flex: 1;
+        height: 7px;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 2px;
+        overflow: hidden;
+      }
+      .bar-fill {
+        height: 100%;
+        border-radius: 2px;
+      }
+      .bar-val {
+        width: 48px;
+        text-align: right;
+        color: #adb2c0;
+      }
+
+      .card-footer-text {
+        font-size: 12.5px;
+        line-height: 1.45;
+        color: #7d8290;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        padding-top: 12px;
+        margin-top: auto;
+      }
+
+      .bottom-note {
+        position: relative;
+        z-index: 2;
+        font-family: "GeistMono", monospace;
+        font-size: 11.5px;
+        color: #646875;
+        text-align: center;
+        margin-top: 14px;
+      }
+      .bottom-note a {
+        color: #94b8ff;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="top-row">
+      <div class="headline-wrap">
+        <span class="tag">MorrowCache 2.0 Benchmark</span>
+        <h2 class="headline">Faster. Calibrated. Zero Tool Replay.</h2>
+      </div>
+      <div class="meta-chip">n = 103 offline & live suite (results/eval.json)</div>
+    </div>
+
+    <div class="benchmark-grid">
+      <!-- Card 1: Latency -->
+      <div class="metric-card">
+        <div>
+          <div class="card-header">
+            <span class="card-label">Latency Collapse</span>
+            <span class="card-badge badge-blue">6.7× Speedup</span>
+          </div>
+          <div class="big-stat stat-highlight">−88%</div>
+          <div class="sub-stat">3,244ms &rarr; 394ms on intent match</div>
+          
+          <div class="bar-group">
+            <div class="bar-row">
+              <span class="bar-name">Upstream</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width: 100%; background: #f0a45c;"></div>
+              </div>
+              <span class="bar-val">3.24s</span>
+            </div>
+            <div class="bar-row">
+              <span class="bar-name">Morrow</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width: 12%; background: #6ba3ff;"></div>
+              </div>
+              <span class="bar-val" style="color: #6ba3ff;">0.39s</span>
+            </div>
+          </div>
+        </div>
+        <p class="card-footer-text">
+          Rephrased prompts and retried agent turns hit local SQLite in milliseconds without invoking the remote model.
+        </p>
+      </div>
+
+      <!-- Card 2: Precision -->
+      <div class="metric-card">
+        <div>
+          <div class="card-header">
+            <span class="card-label">Admit Precision</span>
+            <span class="card-badge badge-green">Zero False Hits</span>
+          </div>
+          <div class="big-stat">0.00 <span style="font-size: 24px; color: #50dc8c; font-weight: 500;">FPR</span></div>
+          <div class="sub-stat">vs 0.49 on Cosine / Jaccard baselines</div>
+
+          <div class="bar-group">
+            <div class="bar-row">
+              <span class="bar-name">Jaccard</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width: 49%; background: #e06060;"></div>
+              </div>
+              <span class="bar-val" style="color: #e06060;">49% FP</span>
+            </div>
+            <div class="bar-row">
+              <span class="bar-name">Morrow</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width: 2%; background: #50dc8c;"></div>
+              </div>
+              <span class="bar-val" style="color: #50dc8c;">0% FP</span>
+            </div>
+          </div>
+        </div>
+        <p class="card-footer-text">
+          Calibrated intent adjudicator (Jev/Kev/Laya) eliminates false hits on negation and entity traps where cosine similarity fails.
+        </p>
+      </div>
+
+      <!-- Card 3: Tool Safety -->
+      <div class="metric-card">
+        <div>
+          <div class="card-header">
+            <span class="card-label">Agent Tool Safety</span>
+            <span class="card-badge badge-amber">The Two Laws</span>
+          </div>
+          <div class="big-stat">100% <span style="font-size: 22px; color: #ffffff; font-weight: 500;">Live</span></div>
+          <div class="sub-stat">tool_calls are NEVER stored or replayed</div>
+
+          <div class="bar-group">
+            <div class="bar-row">
+              <span class="bar-name">Final text</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width: 100%; background: #6ba3ff;"></div>
+              </div>
+              <span class="bar-val" style="color: #6ba3ff;">HIT</span>
+            </div>
+            <div class="bar-row">
+              <span class="bar-name">tool_calls</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width: 100%; background: #f0a45c;"></div>
+              </div>
+              <span class="bar-val" style="color: #f0a45c;">PASSTHRU</span>
+            </div>
+          </div>
+        </div>
+        <p class="card-footer-text">
+          Agents retrying the same job get fast final text answers while tools always execute fresh—preventing stale hallucination loops.
+        </p>
+      </div>
+    </div>
+
+    <div class="bottom-note">
+      Tested on 103 developer prompts and tricky negation traps. Upstream: OpenAI GPT-4o-mini & Claude 3.5 Sonnet.
+    </div>
+  </body>
+</html>

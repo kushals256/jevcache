@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>MorrowCache — How It Works (Exact, Intent, Job, Refuse)</title>
+    <style>
+      @font-face {
+        font-family: "GeistPixelSquare";
+        src: url("../site/public/fonts/GeistPixel-Square.woff2") format("woff2");
+        font-weight: 500;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "Geist";
+        src: url("../site/public/fonts/Geist-Variable.woff2") format("woff2");
+        font-weight: 100 900;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "GeistMono";
+        src: url("../site/public/fonts/GeistMono-Variable.woff2") format("woff2");
+        font-weight: 100 900;
+        font-display: block;
+      }
+      :root {
+        --ink: #050505;
+        --panel: #0d0d0c;
+        --bone: #f3f3ef;
+        --body: #c4c4bd;
+        --muted: #85857f;
+        --hit: #94b8ff;
+        --pink: #ffb6d0;
+        --amber: #ffb6d0;
+        --line: rgba(243, 243, 239, 0.09);
+        --line-strong: rgba(243, 243, 239, 0.17);
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        width: 1200px;
+        height: 680px;
+        background: var(--ink);
+        color: var(--bone);
+        font-family: "Geist", system-ui, sans-serif;
+        padding: 30px 40px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        -webkit-font-smoothing: antialiased;
+        position: relative;
+        overflow: hidden;
+      }
+      body::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(ellipse 60% 60% at 50% 50%, rgba(148, 184, 255, 0.08), transparent 75%),
+          radial-gradient(circle at 1px 1px, rgba(243, 243, 239, 0.04) 1px, transparent 0) 0 0 / 24px 24px,
+          var(--ink);
+        pointer-events: none;
+      }
+
+      /* Hash columns on far edges */
+      .hash-col {
+        position: absolute;
+        top: 24px;
+        bottom: 24px;
+        display: flex;
+        gap: 5px;
+        pointer-events: none;
+        opacity: 0.45;
+      }
+      .hash-col.left { left: 14px; }
+      .hash-col.right { right: 14px; }
+      .hash-bar {
+        width: 4px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .hash-cell {
+        width: 100%;
+        height: 4px;
+        border-radius: 1px;
+      }
+
+      /* Header */
+      .header {
+        position: relative;
+        z-index: 10;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 12px;
+      }
+      .tag {
+        font-family: "GeistMono", monospace;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--hit);
+      }
+      .title {
+        font-family: "GeistPixelSquare", monospace;
+        font-size: 24px;
+        color: #ffffff;
+        letter-spacing: -0.01em;
+        margin-top: 3px;
+      }
+      .meta {
+        font-family: "GeistMono", monospace;
+        font-size: 11.5px;
+        color: var(--muted);
+      }
+      .meta span {
+        color: var(--hit);
+      }
+
+      /* 2x2 Grid of real MorrowCache Window Mocks */
+      .mock-grid {
+        position: relative;
+        z-index: 5;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        gap: 16px;
+        height: 520px;
+        margin-top: 14px;
+      }
+
+      .win {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      }
+      .win.active-hit {
+        border-color: rgba(148, 184, 255, 0.35);
+      }
+      .win-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--line);
+        padding: 6px 14px;
+        font-family: "GeistMono", monospace;
+        font-size: 11px;
+        background: rgba(243, 243, 239, 0.02);
+      }
+      .win-title {
+        color: var(--bone);
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .step-chip {
+        color: var(--hit);
+        font-size: 10px;
+        border: 1px solid rgba(148, 184, 255, 0.4);
+        padding: 0 4px;
+        border-radius: 2px;
+      }
+      .win-meta {
+        color: var(--muted);
+      }
+
+      .tag-hit {
+        background: var(--hit);
+        color: var(--ink);
+        padding: 1px 6px;
+        border-radius: 2px;
+        font-family: "GeistMono", monospace;
+        font-size: 10.5px;
+        font-weight: 600;
+      }
+      .tag-miss {
+        background: var(--amber);
+        color: var(--ink);
+        padding: 1px 6px;
+        border-radius: 2px;
+        font-family: "GeistMono", monospace;
+        font-size: 10.5px;
+        font-weight: 600;
+      }
+      .tag-dim {
+        border: 1px solid var(--line-strong);
+        color: var(--muted);
+        padding: 1px 6px;
+        border-radius: 2px;
+        font-family: "GeistMono", monospace;
+        font-size: 10.5px;
+      }
+
+      /* Mock 1: Exact */
+      .mock-exact-body {
+        font-family: "GeistMono", monospace;
+        font-size: 11px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .incoming-box {
+        padding: 8px 14px;
+        background: rgba(243, 243, 239, 0.015);
+      }
+      .table-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-top: 1px solid var(--line);
+        padding: 5px 14px;
+      }
+      .table-row.match {
+        background: rgba(148, 184, 255, 0.08);
+      }
+
+      /* Mock 2: Adjudicator */
+      .mock-intent-body {
+        font-family: "GeistMono", monospace;
+        font-size: 11px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .intent-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-top: 1px solid var(--line);
+        padding: 5.5px 14px;
+      }
+      .intent-item.admitted {
+        background: rgba(148, 184, 255, 0.08);
+      }
+
+      /* Mock 3: Job */
+      .mock-job-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        font-family: "GeistMono", monospace;
+        font-size: 10.5px;
+        flex: 1;
+      }
+      .job-col {
+        padding: 8px 14px;
+      }
+      .job-col:first-child {
+        border-right: 1px solid var(--line);
+      }
+      .job-step-box {
+        border: 1px solid var(--line);
+        padding: 3px 6px;
+        margin-top: 3px;
+        color: var(--body);
+      }
+      .job-step-box.highlight {
+        border-color: rgba(148, 184, 255, 0.5);
+        color: var(--bone);
+        background: rgba(148, 184, 255, 0.05);
+      }
+
+      /* Mock 4: Refuse */
+      .mock-refuse-body {
+        font-family: "GeistMono", monospace;
+        font-size: 11px;
+        flex: 1;
+      }
+      .refuse-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--line);
+        padding: 6.5px 14px;
+      }
+      .refuse-item:last-child {
+        border-bottom: none;
+      }
+
+      /* Win Bottom Bar */
+      .win-bottom {
+        border-top: 1px solid var(--line);
+        padding: 6px 14px;
+        font-family: "GeistMono", monospace;
+        font-size: 10.5px;
+        color: var(--muted);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(243, 243, 239, 0.015);
+      }
+
+      /* Footer */
+      .footer-lockup {
+        position: relative;
+        z-index: 10;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px solid var(--line);
+        padding-top: 8px;
+        font-family: "GeistMono", monospace;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .footer-lockup span {
+        color: var(--bone);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Decorative Hash Columns on edges -->
+    <div class="hash-col left" id="hashLeft"></div>
+    <div class="hash-col right" id="hashRight"></div>
+
+    <div class="header">
+      <div>
+        <div class="tag">MorrowCache Architecture</div>
+        <h2 class="title">How It Works: Exact, Intent, Job, Refuse</h2>
+      </div>
+      <div class="meta">
+        Live proxy decision engine &bull; <span>prefer miss over a wrong hit</span>
+      </div>
+    </div>
+
+    <div class="mock-grid">
+      <!-- 01 EXACT CACHE -->
+      <div class="win active-hit">
+        <div class="win-header">
+          <div class="win-title"><span class="step-chip">01</span> Exact Cache</div>
+          <div class="win-meta">sha-256 of request bytes</div>
+        </div>
+        <div class="mock-exact-body">
+          <div class="incoming-box">
+            <span style="color: var(--muted);">incoming: </span>
+            <span style="color: var(--bone);"><span style="color: var(--hit);">›</span> explain mutexes simply please</span>
+          </div>
+          <div>
+            <div class="table-row match">
+              <span style="color: var(--hit);">9f2c…a71e</span>
+              <span style="color: var(--bone);">explain mutexes simply please</span>
+              <span class="tag-hit">match</span>
+            </div>
+            <div class="table-row">
+              <span style="color: var(--muted);">41d0…07bb</span>
+              <span style="color: var(--body);">write a regex for iso dates</span>
+              <span></span>
+            </div>
+            <div class="table-row">
+              <span style="color: var(--muted);">77be…d204</span>
+              <span style="color: var(--body);">what does EADDRINUSE mean</span>
+              <span></span>
+            </div>
+          </div>
+          <div class="win-bottom">
+            <span>upstream: <strong style="color: var(--bone);">not called</strong></span>
+            <span class="tag-hit">X-Jevcache: HIT (~0.4s)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 02 ADJUDICATOR -->
+      <div class="win active-hit">
+        <div class="win-header">
+          <div class="win-title"><span class="step-chip">02</span> Intent Adjudicator</div>
+          <div class="win-meta">shortlist proposes, judge admits</div>
+        </div>
+        <div class="mock-intent-body">
+          <div class="incoming-box">
+            <span style="color: var(--muted);">incoming: </span>
+            <span style="color: var(--bone);"><span style="color: var(--hit);">›</span> Please explain mutexes simply</span>
+          </div>
+          <div>
+            <div class="intent-item admitted">
+              <span style="color: var(--bone);">Explain mutexes simply please</span>
+              <span class="tag-hit">admit 0.94</span>
+            </div>
+            <div class="intent-item">
+              <span style="color: var(--body);">Explain semaphores simply</span>
+              <span class="tag-dim">reject</span>
+            </div>
+            <div class="intent-item">
+              <span style="color: var(--body);">Mutex vs spinlock in Rust?</span>
+              <span class="tag-dim">reject</span>
+            </div>
+          </div>
+          <div class="win-bottom">
+            <span>similarity only proposes &bull; <strong style="color: var(--bone);">judge admits</strong></span>
+            <span class="tag-hit">0.00 FPR</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 03 AGENT TURN CACHE -->
+      <div class="win active-hit">
+        <div class="win-header">
+          <div class="win-title"><span class="step-chip">03</span> Agent Turn Cache</div>
+          <div class="win-meta">X-Jevcache-Job-Id: refactor-17</div>
+        </div>
+        <div class="mock-job-grid">
+          <div class="job-col">
+            <div style="color: var(--muted); margin-bottom: 4px;">attempt 1</div>
+            <div class="job-step-box">system: repo context</div>
+            <div class="job-step-box">user: earlier turns</div>
+            <div class="job-step-box">user: add tests for parser.ts</div>
+            <div style="margin-top: 6px;"><span class="tag-miss">miss, model called</span></div>
+          </div>
+          <div class="job-col">
+            <div style="color: var(--muted); margin-bottom: 4px;">attempt 2, a retry</div>
+            <div class="job-step-box">system: repo context</div>
+            <div class="job-step-box">user: earlier turns</div>
+            <div class="job-step-box highlight">user: write tests for parser.ts</div>
+            <div style="margin-top: 6px;"><span class="tag-hit">hit, final text</span></div>
+          </div>
+        </div>
+        <div class="win-bottom">
+          <span>prior: <strong style="color: var(--hit);">identical</strong> &bull; latest: <strong style="color: var(--hit);">same intent</strong></span>
+          <span style="color: var(--hit);">stream replayed</span>
+        </div>
+      </div>
+
+      <!-- 04 DECISION LOG -->
+      <div class="win">
+        <div class="win-header">
+          <div class="win-title"><span class="step-chip">04</span> Decision Log & Safety</div>
+          <div class="win-meta">prefer a miss over a wrong hit</div>
+        </div>
+        <div class="mock-refuse-body">
+          <div class="refuse-item">
+            <div>
+              <span style="color: var(--bone);">"what's the latest node release?"</span>
+              <div style="color: var(--muted); font-size: 10px;">freshness question, refused</div>
+            </div>
+            <span class="tag-miss">refuse</span>
+          </div>
+          <div class="refuse-item">
+            <div>
+              <span style="color: var(--bone);">response carries tool_calls</span>
+              <div style="color: var(--muted); font-size: 10px;">never stored, live tools still run</div>
+            </div>
+            <span class="tag-dim">never stored</span>
+          </div>
+          <div class="refuse-item">
+            <div>
+              <span style="color: var(--bone);">adjudicator unreachable / timeout</span>
+              <div style="color: var(--muted); font-size: 10px;">fails open, real model answers</div>
+            </div>
+            <span class="tag-dim">fail-open</span>
+          </div>
+        </div>
+        <div class="win-bottom">
+          <span>honesty-first: <strong style="color: var(--bone);">never invents answers</strong></span>
+          <span style="color: var(--muted);">SQLite on Node 22.5</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-lockup">
+      <div><span>Drop-in:</span> Change baseURL to <code>http://127.0.0.1:8080/v1</code> &bull; All 4 behaviors active out of the box</div>
+      <div>Cloud Jev or Local Kev/Laya</div>
+    </div>
+
+    <script>
+      const colors = ["#94b8ff", "#ffb6d0", "#c4c4bd", "#0d0d0c", "#161614", "#85857f"];
+      function makeCol(container) {
+        for (let c = 0; c < 2; c++) {
+          const col = document.createElement("div");
+          col.className = "hash-bar";
+          for (let r = 0; r < 34; r++) {
+            const cell = document.createElement("div");
+            cell.className = "hash-cell";
+            const colIdx = Math.floor(Math.random() * colors.length);
+            cell.style.backgroundColor = colors[colIdx];
+            cell.style.opacity = Math.random() > 0.3 ? (0.2 + Math.random() * 0.5) : "0";
+            col.appendChild(cell);
+          }
+          container.appendChild(col);
+        }
+      }
+      makeCol(document.getElementById("hashLeft"));
+      makeCol(document.getElementById("hashRight"));
+    </script>
+  </body>
+</html>
